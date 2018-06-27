@@ -133,5 +133,91 @@ Planner Point Location等等。
    ```
    $ kill -9 pid      //pid是客户端的进程号
    ```    
+## Usage - 使用
+   
+   Redis本身为支持的存储类型分别提供了各种命令对应于数据类型的各种操作
+   [redis commands](https://redis.io/commands/)，例如对集合
+   `set`提供了`SADD`用于集合的创建，`SUNION`用于求集合的并集，以及`SDIFF`用于求集合
+   的差集等等。
+   
+   在UfsRedis中仍然保留了原本Redis支持的各项数据类型和各项操作对应的命令。另外，添加
+   了对新的数据类型并查集的支持，并提供了下面的命令用于对并查集的各项操作：
+   
+   * UADD key members
+   
+    创建一个并查集key，它的值是给定的参数members。
+	
+    如果创建成功，返回ok，假设并查集key已经存在，则创建不成功。
+    ```
+    redis> UADD group1 jhon/joe,peter/sun
+    ok
+    ```
+   * UMEMBERS key   
+    
+    返回并查集key中所有的等价类。
+	
+    不存在的key则报错。
+    ```
+    redis> UADD group1 jhon/joe,peter/sun
+    ok
+    redis> UMEMBERS group1
+    jhon/joe,peter/sun
+    ```
+   * UNION member(s) member(s) key
+   
+    将给定参数所属的等价类合并。
+	
+    返回并查集key的内容。
+    ```
+    redis> UADD group1 jhon/joe,peter/sun
+    ok
+    redis> UNION jhon sun
+    ok 
+    redis> UMEMBERS group1
+    jhon,sun/joe,peter
+    ```   
+   
+   * SPLIT member(s) key
+   
+    将给定参数所属的等价类划分为两个新的等价类，其中一个的内容是给定参数，另一个等价类是剩余的元素。
+	
+    返回并查集key的内容。
+	
+    ```
+    redis> UADD group1 jhon/joe,peter/sun
+    ok
+    redis> SPLIT joe
+    ok 
+    redis> UMEMBERS group1
+    jhon/joe/peter/sun
+    ```   
+   * FIND member(s) key
+   
+    返回member(s)所属的等价类的内容。
+    ```
+    redis> UMEMBERS group1
+    jhon/joe,peter/sun
+    redis> FIND joe group1
+    joe,peter
+    ``` 	
+   
+   在成功启动服务器之后，可以通过启动连接到该服务器的客户端来测试功能：
+   ```
+   $ redis-cli
+   
+   redis> SADD joe's_movie "bet man" "star war" “2012”
+   (integer) 3
 
+   redis> SMEMBER joe's_movie
+   1) "bet man"
+   2) "star war"
+   3) "2012"
+   ```
+   
+   当然，也可以在其他的java，C++等项目中使用UfsRedis。在下载的文件目录中中有一个命名为
+      
 ## Development - 开发
+
+   UfsRedis这个项目是对Redis的扩展，目前只是添加了对并查集数据结构的支持。如果你
+   感兴趣的话，可以尝试进一步修改源文件内容，让Redis支持更加丰富的数据类型。
+
