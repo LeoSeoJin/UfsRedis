@@ -148,56 +148,56 @@ Planner Point Location等等。
      创建一个并查集key，它的值是给定的参数members。
 	
      如果创建成功，返回ok，假设并查集key已经存在，则创建不成功。
-   ```
-   redis> UADD group1 jhon/joe,peter/sun
-   ok
-   ```
+     ```
+     redis> UADD group1 jhon/joe,peter/sun
+     ok
+     ```
    * UMEMBERS key   
     
-   返回并查集key中所有的等价类。
+     返回并查集key中所有的等价类。
 	
-   不存在的key则报错。
-   ```
-    redis> UADD group1 jhon/joe,peter/sun
-    ok
-    redis> UMEMBERS group1
-    jhon/joe,peter/sun
-   ```
+     不存在的key则报错。
+     ```
+     redis> UADD group1 jhon/joe,peter/sun
+     ok	
+     redis> UMEMBERS group1
+     jhon/joe,peter/sun
+     ```
    * UNION member(s) member(s) key
    
-   将给定参数所属的等价类合并。
+     将给定参数所属的等价类合并。
 	
-   返回并查集key的内容。
-   ```
-    redis> UADD group1 jhon/joe,peter/sun
-    ok
-    redis> UNION jhon sun
-    ok 
-    redis> UMEMBERS group1
-    jhon,sun/joe,peter  
-   ```
+     返回并查集key的内容。
+     ```
+     redis> UADD group1 jhon/joe,peter/sun
+     ok
+     redis> UNION jhon sun
+     ok 
+     redis> UMEMBERS group1
+     jhon,sun/joe,peter  
+     ```
    * SPLIT member(s) key
    
-   将给定参数所属的等价类划分为两个新的等价类，其中一个的内容是给定参数，另一个等价类是剩余的元素。
+     将给定参数所属的等价类划分为两个新的等价类，其中一个的内容是给定参数，另一个等价类是剩余的元素。
 	
-   返回并查集key的内容。
-   ```
-    redis> UADD group1 jhon/joe,peter/sun
-    ok
-    redis> SPLIT joe
-    ok 
-    redis> UMEMBERS group1
-    jhon/joe/peter/sun
-   ```
+     返回并查集key的内容。
+     ```
+     redis> UADD group1 jhon/joe,peter/sun
+     ok
+     redis> SPLIT joe
+     ok 
+     redis> UMEMBERS group1
+     jhon/joe/peter/sun
+     ```
    * FIND member(s) key
    
-   返回member(s)所属的等价类的内容。
-   ```
-    redis> UMEMBERS group1
-    jhon/joe,peter/sun
-    redis> FIND joe group1
-    joe,peter
-   ```	
+     返回member(s)所属的等价类的内容。
+     ```
+     redis> UMEMBERS group1
+     jhon/joe,peter/sun
+     redis> FIND joe group1
+     joe,peter
+     ```	
    
    在成功启动服务器之后，可以通过启动连接到该服务器的客户端来测试功能：
    ```
