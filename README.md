@@ -145,9 +145,9 @@ Planner Point Location等等。
    
    * UADD key members
    
-   创建一个并查集key，它的值是给定的参数members。
+     创建一个并查集key，它的值是给定的参数members。
 	
-   如果创建成功，返回ok，假设并查集key已经存在，则创建不成功。
+     如果创建成功，返回ok，假设并查集key已经存在，则创建不成功。
    ```
    redis> UADD group1 jhon/joe,peter/sun
    ok
