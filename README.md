@@ -233,9 +233,9 @@ Planner Point Location等等。
    下面将着重关注下`src`目录，如果你想要为Redis添加新的特点，那么你将会在该目录下添加
    或者修改源文件。
    
-   1. server.h
-   
-   该文件中定义了redisServer，client，redisObject等在Redis实现中用到的重要的数据结构。
+1. server.h
+
+该文件中定义了redisServer，client，redisObject等在Redis实现中用到的重要的数据结构。
    
    redisServer结构体中有几个重要的成员：
    * `server.db` 是Redis存放数据的数据库，Redis提供了16个数据库供存放数据。
