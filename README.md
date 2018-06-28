@@ -233,7 +233,7 @@ Planner Point Location等等。
    下面将着重关注下`src`目录，如果你想要为Redis添加新的特点，那么你将会在该目录下添加
    或者修改源文件。
    
-   server.h
+   1. server.h
    
    该文件中定义了redisServer，client，redisObject等在Redis实现中用到的重要的数据结构。
    
@@ -241,9 +241,9 @@ Planner Point Location等等。
    * `server.db` 是Redis存放数据的数据库，Redis提供了16个数据库供存放数据。
    * `server.commands` 是命令列表，每条命令对应某个数据类型的一个操作。
    * `server.clients` 是连接到服务器的客户端列表，一旦有新的客户端连接到服务器，就会向该列表添加
-内容，同时Redis也提供机制关闭断连的客户端。
+   内容，同时Redis也提供机制关闭断连的客户端。
    * `server.master` 当服务器是一个Slave（在UfsRedis里是一个Client服务器）时，该成员才具有实际内容，
-存储的对应的Master（Redis）或者是Server（UfsRedis）.
+   存储的对应的Master（Redis）或者是Server（UfsRedis）.
 
    
    client是另一个重要的数据结构，下面列出了主要的一些成员：
@@ -257,9 +257,46 @@ Planner Point Location等等。
 哈希，集合和有序集合，在UfsRedis里添加的并查集。它有下面几个重要的成员：
    * `type`表示该对象是哪种数据类型。
    * `encoding`表示该对象的底层实现。Redis为每种对象至少提供了两种不同的实现，会根据需要选择不同
-的实现方式，以达到节省内存空间的目的。
+   的实现方式，以达到节省内存空间的目的。
    * `refcount` 表示该对象的引用计数。用它可以实现对象的共享，避免对同一个对象的重复创建。 并且，利用
-引用计数还可以对不再使用的对象进行回收，释放空间。   
+引用计数还可以对不再使用的对象进行回收，释放空间。
+
+   2. server.c
+
+   `main()`函数就定义在该文件里，除此以外，还有用于启动服务器的主要函数：
+   
+   * `initServerConfig()`对server结构体中的成员设置默认值，如果启动。
+   * `initServer()`为操作需要用到的数据结构分配空间，创建用于通信的套接字等等。
+   * `aeMain()`服务器进入事件循环，关于事件循环请参见Redis提供的文档。  
+
+   对于事件循环，定义了两个重要的函数：
+   * `serverCron()`是一个周期执行的函数，执行周期和配置文件中的`server.hz`选项的值相关。
+   它主要执行一些定期任务，例如对断连的客户端检测，是否需要进行数据持久化等等。
+   * `beforeSleep()`每次进入时间循环之前需要执行的任务，例如是否有回复需要写入客户端的缓冲区等等。
+
+   在server.c中定义了Redis运行的至关重要的一些函数：
+   * `call()`用来执行保存在client结构体中的命令。
+   * `freeMemoryIfNeeded()`当配置文件中的`maxmemory`选项设置了相应的值时，如果当前需要执行新的命令，但是
+ 内存空间不够时，该函数就会根据策略释放部分内存空间，例如一些过期的键值对。
+
+3. networking.c
+
+   这个源文件主要是包含和网络通信相关的函数：
+   * 以`addReply`开头的一系列函数用于服务器回复客户端。
+   * `createClient()`用于创建一个新的客户端。
+   * `readQueryFromClient()`这是一个可读事件的执行函数，当客户端套接字产生可读事件时，就会触发
+   该函数，服务器会读取客户端提交的命令请求。
+
+4. replication.c
+
+   这个源文件负责数据的复制，保证数据在各个服务器上是最终一致的。
+   
+   * `syncCommand`用于Slave（client）服务器首次连接到Master（Server）服务器时的数据同步。
+   * `replicationFeedSlaves`用于将Mster新执行的命令传播给所有的Slave。在UfsRedis中，提供了
+   类似的函数完成Client和Server之间的命令传播。
+   
+当然还有很多的其他源文件，在这里就不一一列出了。上面的几个源文件是你想要对Redis进行扩展时会用到
+的几个重要文件。当然，你也可以创建新的源文件实现相应的功能。   
    
 ## Contributing - 贡献代码
    
