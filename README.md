@@ -217,5 +217,58 @@ Planner Point Location等等。
 ## Development - 开发
 
    UfsRedis这个项目是对Redis的扩展，目前只是添加了对并查集数据结构的支持。如果你
-   感兴趣的话，可以尝试进一步修改源文件内容，让Redis支持更加丰富的数据类型。
+   感兴趣的话，可以尝试进一步修改Redis源码，让Redis支持更加丰富的数据类型。下面
+   简单介绍Redis的代码布局和一些核心的源文件。
+   
+   在Redis的根目录下面，包含了REDAME，Makefile和一个配置文件样例，另外还有一些可以用来
+   脚本文件用来对Redis，Redis集群，Redis哨兵模式进行单元测试。需要注意的是，编译源文件
+   时调用的并非是根目录下的Makefile，而是在`src`文件夹里的Makefile。
+   
+   在根目录下，包含下面的几个重要的目录：
+   
+   * `src`： 包含了用C语言实现Redis的源文件。
+   * `tests`： 包含了各种单元测试，用Tcl实现。
+   * `deps`： 包含了Redis使用到的libraries。编译Redis需要使用到的内容都在这个目录下。
+   
+   下面将着重关注下`src`目录，如果你想要为Redis添加新的特点，那么你将会在该目录下添加
+   或者修改源文件。
+   
+   server.h
+   
+   该文件中定义了redisServer，client，redisObject等在Redis实现中用到的重要的数据结构。
+   
+   redisServer结构体中有几个重要的成员：
+   * `server.db` 是Redis存放数据的数据库，Redis提供了16个数据库供存放数据。
+   * `server.commands` 是命令列表，每条命令对应某个数据类型的一个操作。
+   * `server.clients` 是连接到服务器的客户端列表，一旦有新的客户端连接到服务器，就会向该列表添加
+内容，同时Redis也提供机制关闭断连的客户端。
+   * `server.master` 当服务器是一个Slave（在UfsRedis里是一个Client服务器）时，该成员才具有实际内容，
+存储的对应的Master（Redis）或者是Server（UfsRedis）.
+
+   
+   client是另一个重要的数据结构，下面列出了主要的一些成员：
+   * `fd`是客户端的套接字描述符，用于通信。
+   * `argc`和`argv`分别是保存命令的参数个数和参数内容。
+   * `querybuf`存储客户端发起的命令请求，
+   * `reply`和`buf`分别是动态和静态的保存命令执行完之后的回复内容。在回复内容多到无法保存在静态`buf`
+里的时候，会用`reply`来保存回复内容。   
+   
+   另外，Redis提供了一个对象系统，这个系统中包含了所支持的各种数据类型对象，例如Redis的字符串，列表，
+哈希，集合和有序集合，在UfsRedis里添加的并查集。它有下面几个重要的成员：
+   * `type`表示该对象是哪种数据类型。
+   * `encoding`表示该对象的底层实现。Redis为每种对象至少提供了两种不同的实现，会根据需要选择不同
+的实现方式，以达到节省内存空间的目的。
+   * `refcount` 表示该对象的引用计数。用它可以实现对象的共享，避免对同一个对象的重复创建。 并且，利用
+引用计数还可以对不再使用的对象进行回收，释放空间。   
+   
+## Contributing - 贡献代码
+   
+   如果你想要为Redis添加新的特点，那么你可以通过Github发送pull request，或者是通过
+   邮件形式发送代码段。注意，无论通过哪种形式贡献代码，表示你同意按照BSD许可来发布你的
+   代码。你将在Redis的源码发布包里的 [COPYING][1]文件中找到这些代码。
+   
+   更多的详细内容请参见Redis源码发布包的[CONTRIBUTING][2]文件。
+
+   [1]: https://github.com/antirez/redis/blob/unstable/COPYING
+   [2]: https://github.com/antirez/redis/blob/unstable/CONTRIBUTING
 
