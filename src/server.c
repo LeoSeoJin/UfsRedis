@@ -133,7 +133,7 @@ struct redisCommand redisCommandTable[] = {
 	{"union",unionCommand,4,"r",0,NULL,NULL,0,0,0,0,0},
 	{"find",findCommand,3,"r",0,NULL,NULL,0,0,0,0,0},
 	{"split",splitCommand,3,"r",0,NULL,NULL,0,0,0,0,0},
-	{"printufs",printUfsCommand,2,"r",0,NULL,NULL,0,0,0,0,0}, //add a simple cmd to print "hello world" to logfile
+	{"umembers",umembersCommand,2,"r",0,NULL,NULL,0,0,0,0,0}, //add a simple cmd to print "hello world" to logfile
 	{"test",testCommand,1,"r",0,NULL,NULL,0,0,0,0,0},
 	{"unionot",unionotCommand,-1,"r",0,NULL,otUfs,0,0,0,0,0},
 	{"splitot",splitotCommand,-1,"r",0,NULL,otUfs,0,0,0,0,0},	

@@ -1903,7 +1903,7 @@ void removeAdjEdge(cudGraph *ufs,char *v, sds *list, int len);
 void unionCommand(client *c);
 void findCommand(client *c);
 void splitCommand(client *c);
-void printUfsCommand(client *c);
+void umembersCommand(client *c);
 void testCommand(client *c);
 
 void unionotCommand(client *c);

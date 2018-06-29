@@ -1332,7 +1332,7 @@ void findCommand(client *c) {
     addReplyBulk(c,o);
 }
 
-void printUfsCommand(client *c) {
+void umembersCommand(client *c) {
 	robj *o;
 	int i,j;
 	int skip = 0;
