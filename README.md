@@ -26,7 +26,7 @@ Planner Point Location等等。
 * gcc编译器
 
 ### Steps
-1. 下载地址：[https://github.com/LeoSeoJin/UfsRedis](https://github.com/LeoSeoJin/UfsRedis)，下载最新稳定版本。
+1. 下载地址：[https://github.com/LeoSeoJin/UfsRedis](https://github.com/LeoSeoJin/UfsRedis)。
 2. 编译UfsRedis里的文件
    ```
    $ make
@@ -38,7 +38,7 @@ Planner Point Location等等。
    ``` 
    $ make install
    ```
-   当然，你也可以选择在一开始就直接进入`src`文件夹执行`make install`命令。 `make install`命令的执行结果等价于:   
+   当然，你也可以选择在一开始就直接进入`src`文件夹执行`make install`命令。`make install`命令的执行结果等价于:   
    ```
    $ mv src/redis-server src/redis-cli /usr/local/bin
    ```
@@ -299,9 +299,7 @@ Planner Point Location等等。
    
 ## Contributing - 贡献代码
    
-   如果你想要为Redis添加新的特点，那么你可以通过Github发送pull request，或者是通过
-   邮件形式发送代码段。注意，无论通过哪种形式贡献代码，表示你同意按照BSD许可来发布你的
-   代码。你将在Redis的源码发布包里的 [COPYING][1]文件中找到这些代码。
+   如果你想要为Redis添加新的特点，那么你可以通过Github发送pull request，或者是通过邮件形式发送代码段。注意，无论通过哪种形式贡献代码，表示你同意按照BSD许可来发布你的代码。你将在Redis的源码发布包里的[COPYING][1]文件中找到这些代码。
    
    更多的详细内容请参见Redis源码发布包的[CONTRIBUTING][2]文件。
 
