@@ -26,7 +26,7 @@ Planner Point Location等等。
 * gcc编译器
 
 ### Steps
-1. 下载地址：[https://github.com/LeoSeoJin/UfsRedis](https://github.com/LeoSeoJin/UfsRedis)。
+1. 下载地址：[https://github.com/LeoSeoJin/UfsRedis](https://github.com/LeoSeoJin/UfsRedis)
 2. 编译UfsRedis里的文件
    ```
    $ make
