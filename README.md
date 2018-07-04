@@ -11,10 +11,9 @@ Redis支持Master-Slave架构，只有Master服务器能够修改数据，而Sla
 同时Redis提供的同步机制保证了数据在所有服务器上是最终一致的。
 
 UfsRedis是对Redis的扩展，主要包括两个方面：
-* 结构调整：原本的Redis是Master-Slave架构，现将其Redis修改为Client/Sserver架构。Master
-  服务器和Slave服务器都可以进行数据更新，包括写入新数据和修改旧数据。
-* 类型扩充：在原本支持的数据类型之外，增加了对并查集数据结构的支持。提供了对应的命令
-  实现对并查集的创建，修改。
+* 结构调整：原本的Redis是Master-Slave架构，现将其Redis修改为Client/Sserver架构。原本的Slave服务器
+成为Client服务器，也可以更新数据。Master服务器对应于Server服务器，仍然可以进行数据的更新。
+* 类型扩充：在原本支持的数据类型之外，增加了对并查集数据结构的支持。提供了对应的命令实现对并查集的创建，修改。
 
 用户可以使用UfsRedis来开发利用到等价关系的应用，例如Jigasaw Puzzle Game， 
 Planner Point Location等等。
