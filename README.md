@@ -210,9 +210,8 @@ Planner Point Location等等。
    2) "star war"
    3) "2012"
    ```
+当然，也可以在其他的java，C++等项目中使用UfsRedis。在下载的文件目录中中有一个命名为
    
-   当然，也可以在其他的java，C++等项目中使用UfsRedis。在下载的文件目录中中有一个命名为
-      
 ## Development - 开发
 
    UfsRedis这个项目是对Redis的扩展，目前只是添加了对并查集数据结构的支持。如果你
