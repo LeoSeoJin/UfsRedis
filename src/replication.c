@@ -363,6 +363,7 @@ void replicationFeedExSlave(list *slaves, int dictid, uint64_t id, robj **argv, 
         }
     }
 
+	serverLog(LL_LOG,"replicationFeedExSlaves: start addreply");
     /* Write the command to every slave. */
     listRewind(slaves,&li);
     while((ln = listNext(&li))) {

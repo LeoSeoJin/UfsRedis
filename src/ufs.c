@@ -1,6 +1,7 @@
 #include "server.h"
 #include <sys/time.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 int randSleepTime() {
 	srand(time(NULL));
@@ -136,8 +137,11 @@ int existEdge(cudGraph *ufs,int v1, int v2) {
 }
 
 int existElement(cudGraph *ufs, sds e) {
-    for(int i = 0; i < ufs->vertexnum; i++)  
-        if(!sdscmp(e, ufs->dlist[i].data))  return 1;  
+    for(int i = 0; i < ufs->vertexnum; i++) { 
+    	//serverLog(LL_LOG,"ufs->dlist[i].data: %s", ufs->dlist[i].data);
+    	//serverLog(LL_LOG,"e: %s",e);
+        if(!sdscmp(e, ufs->dlist[i].data))  return 1; 
+    } 
     return 0; 	
 }
 
@@ -146,7 +150,7 @@ int existElements(cudGraph *ufs, sds *list, int len) {
 	for (i = 0; i < len; i++) {
        for(j = 0; j < ufs->vertexnum; j++)  
           if(!sdscmp(list[i], ufs->dlist[j].data)) break;
-       if (j != ufs->vertexnum) break;
+       if (j == ufs->vertexnum) break;
 	}
 	
 	if (i == len) return 1;
@@ -184,10 +188,10 @@ void createEdge(cudGraph *ufs,int v1, int v2) {
 }
 
 void createLinks(cudGraph *ufs, int i, int j) {
-	serverLog(LL_LOG,"vertex index: %d %d ", i, j);
+	//serverLog(LL_LOG,"vertex index: %d %d ", i, j);
 
     createEdge(ufs,i, j);
-	serverLog(LL_LOG, "createEdge success ");
+	//serverLog(LL_LOG, "createEdge success ");
 
 	edge *p = ufs->dlist[i].firstedge;
 	edge *q;
@@ -214,7 +218,7 @@ void createLinks(cudGraph *ufs, int i, int j) {
 }
 
 void removeEdge(cudGraph *ufs, sds v1, char *v2) {
-        int i = locateVex(ufs, v1);
+    int i = locateVex(ufs, v1);
 	int j = locateVex(ufs, v2);
 		
 	edge *p, *q;
@@ -250,12 +254,12 @@ void removeEdge(cudGraph *ufs, sds v1, char *v2) {
 void removeAdjEdge(cudGraph *ufs, char *v, sds *list, int len) {
 	int i = locateVex(ufs, v);
 	edge *p = ufs->dlist[i].firstedge;
-	serverLog(LL_LOG,"removeAdjEdge: vertex: %d ", i);
+	//serverLog(LL_LOG,"removeAdjEdge: vertex: %d ", i);
 	if (p != NULL) {
 		edge *q;
 		while (p != NULL) {
 			if (!list || !find(list, ufs->dlist[p->adjvex].data, len)) {
-				serverLog(LL_LOG, "removeAdjEdge: v1 %s v2: %s ",v,ufs->dlist[p->adjvex].data);
+				//serverLog(LL_LOG, "removeAdjEdge: v1 %s v2: %s ",v,ufs->dlist[p->adjvex].data);
 				if (p == ufs->dlist[i].firstedge) {
 					ufs->dlist[i].firstedge = p->nextedge;
 					zfree(p);
@@ -271,7 +275,7 @@ void removeAdjEdge(cudGraph *ufs, char *v, sds *list, int len) {
 			} 
 		}
 		
-		serverLog(LL_LOG,"removeAdjEdge: edgenum %d ", ufs->edgenum);
+		//serverLog(LL_LOG,"removeAdjEdge: edgenum %d ", ufs->edgenum);
 		
 		//if (!list) ufs->dlist[i].firstedge = NULL;
 
@@ -280,7 +284,7 @@ void removeAdjEdge(cudGraph *ufs, char *v, sds *list, int len) {
 			while (p != NULL) {
 				if (p->adjvex == i) {
 					if (!list || !find(list, ufs->dlist[j].data, len)) {
-						serverLog(LL_LOG, "removeAdjEdge: v1 %s v2: %s ",ufs->dlist[j].data,v);
+						//serverLog(LL_LOG, "removeAdjEdge: v1 %s v2: %s ",ufs->dlist[j].data,v);
 						if (p == ufs->dlist[j].firstedge) {
 							ufs->dlist[j].firstedge = p->nextedge;
 							zfree(p);
@@ -311,8 +315,8 @@ void updateVerticeUfsFromState(sds ufs, robj **argv, vertice *v) {
     sds v_ufs;
     
     if (argv[0] == shared.unionot || (argv[0]!=shared.splitot && !strcmp(argv[0]->ptr,"unionot"))) {
-	   	serverLog(LL_LOG,"updaeVerticeUfsFromState: unionot");
-		if (!sdscmp(argv[1]->ptr,"*") || !strcmp(argv[2]->ptr,"*")) {
+	   	serverLog(LL_LOG,"updaeVerticeUfsFromState: %s unionot %s %s",ufs,argv[1]->ptr,argv[2]->ptr);
+		if (!strcmp(argv[1]->ptr,"*") || !strcmp(argv[2]->ptr,"*")) {
 			v_ufs = sdsnew(ufs);
 		} else {
         //union operation
@@ -351,7 +355,7 @@ void updateVerticeUfsFromState(sds ufs, robj **argv, vertice *v) {
        }       
     } else {
         //split operaton
-    	serverLog(LL_LOG,"updaeVerticeUfsFromState: splitot");
+    	//serverLog(LL_LOG,"updaeVerticeUfsFromState: splitot");
     	if (!strcmp(argv[1]->ptr,"*")) {
     		v_ufs = sdsnew(ufs);
     	} else { 
@@ -385,7 +389,7 @@ void updateVerticeUfsFromState(sds ufs, robj **argv, vertice *v) {
         }
         }
     }
-    serverLog(LL_LOG,"updateVerticeFromState: v_ufs %s ",v_ufs);
+    serverLog(LL_LOG,"updateVerticeFromState(end): v_ufs %s ",v_ufs);
     sdsfreesplitres(elements,len);
     v->content = v_ufs;
 }
@@ -451,8 +455,10 @@ void updateVerticeUfs(cudGraph *ufs, vertice *v) {
 
 void unionProcess(client *c, robj **argv) {
 	int i,j;
-	int argv1len = strlen(argv[1]->ptr);
-	int argv2len = strlen(argv[2]->ptr);
+	//int argv1len = strlen(argv[1]->ptr);
+	//int argv2len = strlen(argv[2]->ptr);
+	int argv1len = strchr(argv[1]->ptr,',')==NULL?1:2;
+	int argv2len = strchr(argv[2]->ptr,',')==NULL?1:2;
 	cudGraph *ufs = getUfs(c->argv[c->argc-1]->ptr);
 	list *space = getSpace(c->argv[c->argc-1]->ptr);
 	serverLog(LL_LOG,"union arguments num: %d %d ", argv1len, argv2len);
@@ -551,8 +557,10 @@ void unionProcess(client *c, robj **argv) {
 
 void unionProc(client *c, robj **argv) {
 	int i,j;
-	int argv1len = strlen(argv[1]->ptr);
-	int argv2len = strlen(argv[2]->ptr);
+	//int argv1len = strlen(argv[1]->ptr);
+	//int argv2len = strlen(argv[2]->ptr);
+	int argv1len = strchr(argv[1]->ptr,',')==NULL?1:2;
+	int argv2len = strchr(argv[2]->ptr,',')==NULL?1:2;
 	cudGraph *ufs = getUfs(c->argv[c->argc-1]->ptr);
 	serverLog(LL_LOG,"unionProc arguments num: %d %d ", argv1len, argv2len);
 	
@@ -620,7 +628,8 @@ void unionProc(client *c, robj **argv) {
 void splitProcess(client *c, robj **argv) {
 	cudGraph *ufs = getUfs(c->argv[c->argc-1]->ptr);
 	list *space = getSpace(c->argv[c->argc-1]->ptr);
-	if (strlen(argv[1]->ptr) > 1) {
+	int argvlen = strchr(argv[1]->ptr,',')==NULL?1:2;
+	if (argvlen > 1) {
 		sds *elements;
 		int len;
 	
@@ -660,7 +669,8 @@ void splitProcess(client *c, robj **argv) {
 
 void splitProc(client *c, robj **argv) {
 	cudGraph *ufs = getUfs(c->argv[c->argc-1]->ptr);
-	if (strlen(argv[1]->ptr) > 1) {
+	//if (strlen(argv[1]->ptr) > 1) {
+	if (strchr(argv[1]->ptr,',') != NULL){
 		sds *elements;
 		int len;
 	
@@ -690,8 +700,10 @@ int checkArgv(client *c, robj **argv) {
 
 int checkUnionArgv(client *c, robj **argv) {
 	int i,j;
-	int argv1len = strlen(argv[1]->ptr);
-	int argv2len = strlen(argv[2]->ptr);
+	//int argv1len = strlen(argv[1]->ptr);
+	//int argv2len = strlen(argv[2]->ptr);
+	int argv1len = strchr(argv[1]->ptr,',')==NULL?1:2;
+	int argv2len = strchr(argv[2]->ptr,',')==NULL?1:2;
 	cudGraph *ufs = getUfs(c->argv[c->argc-1]->ptr);
 	serverLog(LL_LOG,"check union argv");
 	
@@ -793,7 +805,8 @@ int checkUnionArgv(client *c, robj **argv) {
 
 int checkSplitArgv(client *c, robj **argv) {
 	cudGraph *ufs = getUfs(c->argv[c->argc-1]->ptr);
-	if (strlen(argv[1]->ptr) > 1) {
+	//if (strlen(argv[1]->ptr) > 1) {
+	if (strchr(argv[1]->ptr,',')!=NULL) {
 		sds *elements;
 		int len;
 	
@@ -831,21 +844,30 @@ void controlAlg(client *c) {
 
 			cudGraph *ufs = getUfs(c->argv[c->argc-1]->ptr); /*op argv1 argv2 tag1*/
 			op_num++;
-			sds oids,oid;
+			sds oid = sdsempty();		
+
+            //if (locateoids) sdsfree(locateoids);
+            sds locateoids = sdsempty();
+			locateoids = sdscat(locateoids,"init");
 			vertice *v;
            
             v = locateVertice(space, NULL);
-			oid = sdsempty();
+            locateoids = calculateOids(space->head->value,locateoids);
+            serverLog(LL_LOG,"locateoids: %s ",locateoids);
+            
+            robj *argvctx = createObject(OBJ_STRING,sdsnew(locateoids));
+						
 			char buf1[Port_Num+1] = {0};
 			char buf2[Max_Op_Num] = {0};
-			oid = sdscat(oid,itos(server.port,buf1,10));
+			oid = sdscat(oid,itos(server.port-6378,buf1,10));
 			oid = sdscat(oid,"_");
 			oid = sdscat(oid,itos(op_num,buf2,10));
-			oids = sdsnew(v->oids);
-			oids = sdscat(oids,",");
-			oids = sdscat(oids,oid);				
-			vertice *v1 = createVertice(oids);
+	        locateoids = sdscat(locateoids,oid);
+	        
+			vertice *v1 = createVertice();
 			listAddNodeTail(space,v1);
+			
+			serverLog(LL_LOG,"2locateoids: %s %s",locateoids,argvctx->ptr);
 			
 			robj **argv = zmalloc(sizeof(robj *)*c->argc);
 			if (!strcmp(c->argv[0]->ptr,"unionot")) {
@@ -867,28 +889,30 @@ void controlAlg(client *c) {
 			    //union x y oid ctx tag1
 			    robj *argv6 = createObject(OBJ_STRING,sdsnew(c->argv[3]->ptr));
 			    robj *argv4 = createObject(OBJ_STRING,v->ledge->oid);
-			    robj *argv5 = createObject(OBJ_STRING,v->oids);
+			    //robj *argv5 = createObject(OBJ_STRING,v->oids);
+			    //robj *argv5 = createObject(OBJ_STRING,sdsnew(locateoids));
                 rewriteClientCommandArgument(c,3,argv4);
-                rewriteClientCommandArgument(c,4,argv5); 
+                rewriteClientCommandArgument(c,4,argvctx); 
                 rewriteClientCommandArgument(c,5,argv6);
-                //serverLog(LL_LOG,"rewriteClientCommandArgument, unionot, %s %s ",oid, oids);
-                serverLogCmd(c);       
+                //serverLog(LL_LOG,"rewriteClientCommandArgument, unionot, %s %s ",oid, argvctx->ptr);
+                //serverLogCmd(c);       
 			} else {
                 //split x oid ctx tag1	
                 robj *argv5 = createObject(OBJ_STRING,sdsnew(c->argv[2]->ptr));
                 robj *argv3 = createObject(OBJ_STRING,v->ledge->oid);
-			    robj *argv4 = createObject(OBJ_STRING,v->oids);		
+			    //robj *argv4 = createObject(OBJ_STRING,v->oids);		
+			    //robj *argv4 = createObject(OBJ_STRING,sdsnew(locateoids));     
     			rewriteClientCommandArgument(c,2,argv3);
-	    		rewriteClientCommandArgument(c,3,argv4);
+	    		rewriteClientCommandArgument(c,3,argvctx);
 	    		rewriteClientCommandArgument(c,4,argv5);  
-	    		//serverLog(LL_LOG,"rewriteClientCommandArgument, splitot, %s %s ",oid, oids);
-                serverLogCmd(c);      
+	    		//serverLog(LL_LOG,"rewriteClientCommandArgument, splitot, %s %s ",oid, argvctx->ptr);
+                //serverLogCmd(c);      
 			}
 			sdsfree(oid);
-			sdsfree(oids);
-			
-			serverLog(LL_LOG,"rewriteClientCommandArgument, argc %d ",c->argc);
-            serverLogCmd(c); 
+			//sdsfree(oids);
+			sdsfree(locateoids);
+			//serverLog(LL_LOG,"rewriteClientCommandArgument, argc %d ",c->argc);
+            //serverLogCmd(c); 
 			
 			//execution of local generated operation
 			if (!strcmp(c->argv[0]->ptr, "unionot")) unionProc(c, c->argv); 
@@ -897,12 +921,14 @@ void controlAlg(client *c) {
             //update ufs of vertice
             if (v->ledge) {
             	updateVerticeUfs(ufs,v1);
-				serverLog(LL_LOG,"local processing: v1->oids: %s v1->content: %s ",v1->oids, v1->content);
+				//serverLog(LL_LOG,"local processing: v1->oids: %s v1->content: %s ",v1->oids, v1->content);
 			}
 			
 			//guarantee local operation firstly executed, sleep several seconds, then receive operation
-            if (!strcmp(c->argv[0]->ptr, "unionot")) sleep(randSleepTime()); 
-            if (!strcmp(c->argv[0]->ptr, "splitot")) sleep(randSleepTime());
+            //if (!strcmp(c->argv[0]->ptr, "unionot")) usleep(50000); //50ms
+            //if (!strcmp(c->argv[0]->ptr, "splitot")) usleep(20000);
+            if (!strcmp(c->argv[0]->ptr, "unionot")) sleep(3); 
+            if (!strcmp(c->argv[0]->ptr, "splitot")) sleep(2);
 		} else {
 			/*remote processing: op argv1 (argv2) oid oids tag1*/
 			sds ctx, oid;
@@ -913,17 +939,17 @@ void controlAlg(client *c) {
     			ctx = c->argv[3]->ptr;
 	    		oid = c->argv[2]->ptr;
 			}
-			serverLog(LL_LOG,"start remote processing: ctx: %s oid: %s",ctx, oid);
-			
+			//serverLog(LL_LOG,"start remote processing: ctx: %s oid: %s",ctx, oid);
+			//sds locateoids = sdsnew("init");
 			vertice *u = locateVertice(space,ctx);
-			serverLog(LL_LOG,"locate u: oids: %s content: %s",u->oids, u->content);
-			sds oids = sdsempty();
-			oids = sdscat(oids,ctx);
-			oids = sdscat(oids,",");
-			oids = sdscat(oids,oid);
-			vertice *v = createVertice(oids);			
+			//serverLog(LL_LOG,"locate u: oids: %s content: %s",u->oids, u->content);
+			//sds oids = sdsempty();
+			//oids = sdscat(oids,ctx);
+			//oids = sdscat(oids,",");
+			//oids = sdscat(oids,oid);
+			vertice *v = createVertice();			
 			listAddNodeTail(space,v);
-			sdsfree(oids);
+			//sdsfree(oids);
 
 			robj **argv = zmalloc(sizeof(robj *)*(c->argc-3)); //flag todo 
 			if (!strcmp(c->argv[0]->ptr,"unionot")) {
@@ -936,17 +962,17 @@ void controlAlg(client *c) {
 
 			//u->redge = createOpEdge(argv,ctx,oid,v);
 			u->redge = createOpEdge(argv,oid,v);
-			updateVerticeUfsFromState(u->content,c->argv,v); 
+			updateVerticeUfsFromState(u->content,argv,v); 
 
 			vertice *ul;
 			vertice *p = v;
-			oids = sdsnew(p->oids);
+			//oids = sdsnew(p->oids);
 			
-
+			if (u->ledge) serverLog(LL_LOG,"ot process"); 
 			while (u->ledge != NULL) {
-				oids = sdscat(oids,",");
-				oids = sdscat(oids,u->ledge->oid);
-				vertice *pl = createVertice(oids);	
+				//oids = sdscat(oids,",");
+				//oids = sdscat(oids,u->ledge->oid);
+				vertice *pl = createVertice();	
 				listAddNodeTail(space,pl);
 				//p->ledge = createOpEdge(NULL,p->oids,u->ledge->oid,pl);
 				p->ledge = createOpEdge(NULL,u->ledge->oid,pl);
@@ -955,29 +981,31 @@ void controlAlg(client *c) {
 				//ul->redge = createOpEdge(NULL,ul->oids,u->redge->oid,pl);
 				ul->redge = createOpEdge(NULL,u->redge->oid,pl);
 
-				serverLog(LL_LOG,"ot starting");
+				//serverLog(LL_LOG,"ot starting");
 				//ufs->proc(u->content,u->ledge->argv,u->redge->argv,p->ledge, ul->redge, UNION);
                 //ufs->proc(u->content,u->ledge->argv,u->redge->argv,p->ledge, ul->redge, SPLIT);
 				//ufs->proc(u->content,u->ledge->argv,u->redge->argv,p->ledge, ul->redge, SPLIT);
 				c->cmd->otproc(u->content,u->ledge->argv,u->redge->argv,p->ledge, ul->redge, SPLIT);
-                serverLog(LL_LOG,"ot finished");
+                //serverLog(LL_LOG,"ot finished");
                 updateVerticeUfsFromState(ul->content,ul->redge->argv,pl); 
                 
 				u = ul;
 				p = pl;
 			}
-			sdsfree(oids);
+			//sdsfree(oids);
 			
 			/*execute the trasformed remote operation (finish ot process)
 			 *or original remote operation (u->ledge = NULL, no ot process)
 			 */
             if (!strcmp(c->argv[0]->ptr, "unionot")) {
             	unionProc(c,u->redge->argv); 
-            	sleep(randSleepTime());
+            	//usleep(50000);
+            	sleep(3);
             }	
             if (!strcmp(c->argv[0]->ptr, "splitot")) {
                 splitProc(c,u->redge->argv);
-                sleep(randSleepTime());
+                //usleep(30000);
+                sleep(2);
             }
 		}
 	} else {
@@ -991,42 +1019,47 @@ void controlAlg(client *c) {
             ctx = c->argv[3]->ptr;
             oid = c->argv[2]->ptr;
         }
-		serverLog(LL_LOG,"controlAlg: server: argc %d ctx %s oid %s ", c->argc, ctx, oid);
+		//serverLog(LL_LOG,"controlAlg: server: argc %d ctx %s oid %s ", c->argc, ctx, oid);
 		
 		verlist *s = locateVerlist(c->slave_listening_port,c->argv[c->argc-1]->ptr);
 		vertice *u = locateVertice(s->vertices,ctx);
+		//serverLog(LL_LOG,"locateRVertice: return vertex u: %s %s",u->oids,u->content);
 		
 		sds oids = sdsempty();
 		oids = sdscat(oids,ctx);
 		oids = sdscat(oids,",");
 		oids = sdscat(oids,oid);
-		vertice *v = createVertice(oids);	
+		vertice *v = createVertice();	
 		listAddNodeTail(s->vertices,v);
-		sdsfree(oids);
+		//sdsfree(oids);
 
-		robj **argv = zmalloc(sizeof(robj *)*(c->argc-2));
+		serverLog(LL_LOG,"server processing, memory (begining): %d ", zmalloc_used_memory());
+		
+		robj **argv = zmalloc(sizeof(robj *)*(c->argc-3));
 		if (!strcmp(c->argv[0]->ptr,"unionot")) {
 			argv[0] = shared.unionot; 
 		} else {
 			argv[0] = shared.splitot;
 		}		
-		for (int i = 1; i < c->argc-2; i++) 
+		for (int i = 1; i < c->argc-3; i++) 
 		    argv[i] = createObject(OBJ_STRING,sdsnew(c->argv[i]->ptr));
 		u->ledge = createOpEdge(argv,oid,v);
 
 		serverLog(LL_LOG,"create a new local operation finished, current state %s ", u->content); 		
-        updateVerticeUfsFromState(u->content,c->argv,v);
+        updateVerticeUfsFromState(u->content,argv,v);
         serverLog(LL_LOG,"updateVerticeUfsFromState finished, v->content %s ", v->content); 
         
+        serverLog(LL_LOG,"server processing, memory (before ot): %d ", zmalloc_used_memory());
 		vertice *ur;
 		vertice *p = v;
-		oids = sdsnew(p->oids);
+		//sds otoids = sdsnew(p->oids);
+		if (u->redge) serverLog(LL_LOG,"ot process");
 		while (u->redge != NULL) {
 			//serverLog(LL_LOG,"ot finished, space: %d p->oids: %s, u->redge->oid: %s",space->id,oids,u->redge->oid);
 			
 			oids = sdscat(oids,",");
 			oids = sdscat(oids,u->redge->oid);
-			vertice *pr = createVertice(oids);	
+			vertice *pr = createVertice();	
 			listAddNodeTail(s->vertices,pr);
 			//p->redge = createOpEdge(NULL,p->oids,u->redge->oid,pr);
 			p->redge = createOpEdge(NULL,u->redge->oid,pr);
@@ -1040,20 +1073,22 @@ void controlAlg(client *c) {
 			//ufs->proc(u->content,u->redge->argv,u->ledge->argv,p->redge,ur->ledge,SPLIT);
 			c->cmd->otproc(u->content,u->redge->argv,u->ledge->argv,p->redge,ur->ledge,SPLIT);
 			
-			serverLog(LL_LOG,"p->redge: oids: %s oid: %s",p->oids,u->redge->oid);
+			//serverLog(LL_LOG,"p->redge: oids: %s oid: %s",p->oids,u->redge->oid);
 			serverLogArgv(p->redge->argv);			
 
-			serverLog(LL_LOG,"ur->ledge: oids: %s oid: %s",ur->oids,u->ledge->oid);
+			//serverLog(LL_LOG,"ur->ledge: oids: %s oid: %s",ur->oids,u->ledge->oid);
 			serverLogArgv(ur->ledge->argv);
 			
-			serverLog(LL_LOG,"update pr->content, from state: %s",ur->content);
+			//serverLog(LL_LOG,"update pr->content, from state: %s",ur->content);
 			updateVerticeUfsFromState(ur->content,ur->ledge->argv,pr); 
 			
-			serverLog(LL_LOG,"pr->content: %s ", pr->content);
+			//serverLog(LL_LOG,"pr->content: %s ", pr->content);
 			u = ur;
 			p = pr;
 	    }
-	    sdsfree(oids);	
+	    //sdsfree(oids);	
+	    
+	    serverLog(LL_LOG,"server processing, memory (after ot): %d ", zmalloc_used_memory());
 	    
 	    //save argv2 to each other client's space  ,******************* todo: save to the key's space
 	    listNode *ln;
@@ -1066,20 +1101,20 @@ void controlAlg(client *c) {
             if (sdscmp(s->key,c->argv[c->argc-1]->ptr) || s->id == c->slave_listening_port) continue;
 			
 			//serverLog(LL_LOG,"server processing: save to other space: port %d ",space->id);
-            
+
+            /*
             oids = sdsempty();
             vertice *loc = locateVertice(s->vertices,NULL);
-            serverLog(LL_LOG,"locateVertice: loc->oids %s ",loc->oids);
-            oids = sdscat(oids,loc->oids);
-            oids = sdscat(oids,",");
-            oids = sdscat(oids,u->ledge->oid);
-            serverLog(LL_LOG,"locateVertice: u->ledge->oid %s ",u->ledge->oid);
-            serverLog(LL_LOG,"oids: %s ",oids);
-            vertice *locr = createVertice(oids);
+            */
+            //sds otheroids = sdsnew("init");
+            vertice *loc = locateVertice(s->vertices,NULL);
+            //otheroids = sdscat(otheroids,",");
+            //otheroids = sdscat(otheroids,u->ledge->oid);
+            vertice *locr = createVertice();
             listAddNodeTail(s->vertices,locr);
-			sdsfree(oids);
+			//sdsfree(otheroids);
 			
-			serverLog(LL_LOG,"server processing: update other dss, port %d locr->oids: %s", s->id, locr->oids);
+			//serverLog(LL_LOG,"server processing: update other dss, port %d locr->oids: %s", s->id, locr->oids);
 		
 		
 			//serverLog(LL_LOG,"save argv to other clients, memory (before): %d ", zmalloc_used_memory());
@@ -1097,34 +1132,37 @@ void controlAlg(client *c) {
 
             updateVerticeUfsFromState(loc->content,loc->redge->argv,locr); 
             serverLogArgv(loc->redge->argv);
-            serverLog(LL_LOG,"oids: %s oid: %s ufs: %s ", locr->oids, loc->redge->oid, locr->content);
+            //serverLog(LL_LOG,"oids: %s oid: %s ufs: %s ", locr->oids, loc->redge->oid, locr->content);
+            serverLog(LL_LOG,"server processing, memory (other spaces): %d ", zmalloc_used_memory());
         }
     	//server.dirty++; 
     	c->flag_ufs = 1;
     	//rewrite the command argv and transform it to other clients;
+    	oids = sdsDel(oids,u->ledge->oid);
 		if (c->argc == 6) {
 	    	//union x y oid ctx tag1
 	    	robj *argv2 = createObject(OBJ_STRING,u->ledge->argv[1]->ptr);
 	    	robj *argv3 = createObject(OBJ_STRING,u->ledge->argv[2]->ptr);
 		    robj *argv4 = createObject(OBJ_STRING,u->ledge->oid);
-		    robj *argv5 = createObject(OBJ_STRING,u->oids);
+		    robj *argv5 = createObject(OBJ_STRING,sdsnew(oids));
 		    rewriteClientCommandArgument(c,1,argv2);
 		    rewriteClientCommandArgument(c,2,argv3);
 	        rewriteClientCommandArgument(c,3,argv4);
 	        rewriteClientCommandArgument(c,4,argv5); 
 	        //serverLog(LL_LOG,"rewriteClientCommandArgument, unionot, %s %s ",oid, oids);
-	        serverLogCmd(c);       
+	        //serverLogCmd(c);       
 		} else {
 	        //split x oid ctx tag1	
 	        robj *argv2 = createObject(OBJ_STRING,u->ledge->argv[1]->ptr);
 	        robj *argv3 = createObject(OBJ_STRING,u->ledge->oid);
-			robj *argv4 = createObject(OBJ_STRING,u->oids);	
+			robj *argv4 = createObject(OBJ_STRING,sdsnew(oids));	
 			rewriteClientCommandArgument(c,1,argv2);	
 			rewriteClientCommandArgument(c,2,argv3);
 		    rewriteClientCommandArgument(c,3,argv4);  
 		    //serverLog(LL_LOG,"rewriteClientCommandArgument, splitot, %s %s ",oid, oids);
-	        serverLogCmd(c);      
-		}      
+	        //serverLogCmd(c);      
+		}
+		sdsfree(oids);
 	}	
 }
 
@@ -1193,7 +1231,7 @@ void splitCommand(client *c) {
 }
 
 /* example: uadd 1 1,2/3/4/5 */
-void uaddCommand(client *c) {
+void uinitCommand(client *c) {
     int eqcs_num,num;
     sds *eqcs, *elements;
     int i,k,m;
@@ -1255,9 +1293,9 @@ void uaddCommand(client *c) {
 			return;
 		} else {
 	    	cverlist *v = createCVerlist(key);
-			sds oids = sdsnew("init");
-			vertice *top = createVertice(oids);
-			sdsfree(oids);
+			//sds oids = sdsnew("init");
+			vertice *top = createVertice();
+			//sdsfree(oids);
 			updateVerticeUfs(ufs,top);
 			listAddNodeTail(v->vertices,top);
 			listAddNodeTail(cspacelist->spaces,v); 
@@ -1278,9 +1316,9 @@ void uaddCommand(client *c) {
     	    	client *c = ln->value;
     	    	
 				verlist *v = createVerlist(c->slave_listening_port,key);
-    			sds oids = sdsnew("init");
-				vertice *top = createVertice(oids);
-				sdsfree(oids);
+    			//sds oids = sdsnew("init");
+				vertice *top = createVertice();
+				//sdsfree(oids);
 				//top->content = sdsempty();
 				updateVerticeUfs(ufs,top);
 				listAddNodeTail(v->vertices,top);
@@ -1341,9 +1379,9 @@ void umembersCommand(client *c) {
 	sds result = sdsempty();
 	cudGraph *ufs = getUfs(c->argv[1]->ptr);
 	
-	serverLog(LL_LOG,"printufscommand: vertexnum: %d ",ufs->vertexnum);
+	//serverLog(LL_LOG,"printufscommand: vertexnum: %d ",ufs->vertexnum);
 	for (i = 0; i < ufs->vertexnum; i++) {
-		serverLog(LL_LOG,"printufsCommand: i: %d ", i);
+		//serverLog(LL_LOG,"printufsCommand: i: %d ", i);
 		for (j = 0; j < i; j++) {
 			if (existEdge(ufs,i, j)) {
 				skip++;	
@@ -1354,7 +1392,7 @@ void umembersCommand(client *c) {
 		if (j < i) continue;
 		list = sdsempty();
 		list = sdscat(list, ufs->dlist[i].data);
-		list = sdscat(list,",");
+		if (ufs->dlist[i].firstedge != NULL) list = sdscat(list,",");
 
 		if (ufs->dlist[i].firstedge != NULL) {
 			edge *p = ufs->dlist[i].firstedge;
@@ -1364,13 +1402,13 @@ void umembersCommand(client *c) {
 				p = p->nextedge;
 			}
 		}
-		serverLog(LL_LOG, "findCommand: list %s ", list);
+		//serverLog(LL_LOG, "findCommand: list %s ", list);
 
 		//sort the list by increasing adjvex of vertexex
 		int len;
 		sds *elements = sdssplitlen(list,sdslen(list),",",1,&len);
 
-		for (j=0;j<len;j++) serverLog(LL_LOG,"splitcommand: elements %s len %d ", elements[j], len);
+		//for (j=0;j<len;j++) serverLog(LL_LOG,"splitcommand: elements %s len %d ", elements[j], len);
 		//bubbleSort(ufs,elements,len);
 		//insertSort(ufs,elements,len);
 		quickSort(ufs,elements,0,len-1);
@@ -1378,6 +1416,7 @@ void umembersCommand(client *c) {
 
 		for (j = 0; j < len; j++) {
 			list = sdscat(list,elements[j]);
+			if (j != len-1) list = sdscat(list,",");
 		}
 		result = sdscat(result,list);
 		if (i != (ufs->vertexnum - 1)) {
@@ -1391,11 +1430,56 @@ void umembersCommand(client *c) {
     addReplyBulk(c,o);		
 }
 
+void test (sds t) {
+    sds p = t;
+    int i = 1;
+    while (i<4) {
+    p = sdscat(p,"mm");
+    i++;}
+}
+
+void test2  (sds t) {
+    int i = 1;
+    sds q = t;
+    while (i<4) {
+   q = sdscat(q,"nn");
+    i++;} 
+}
+
+void test3 (sds t) {
+    int i = 1;
+    sds q= sdsnewlen(t,20);
+    sds m = sdsempty();
+    m = sdscat(m,"nn");
+    while(i<4){
+    q = sdscat(q,"nn");
+    i++;}
+    i=1;
+    while(i<3){
+    q = sdscat(q,m);
+    i++;}
+}
+
 void testCommand(client *c) {
-	sds t = sdsnew("redis");
-	serverLog(LL_LOG,"len: %d alloc: %d",SDS_HDR(8,t)->len,SDS_HDR(8,t)->alloc);
-	t = sdscat(t,"cluster");
-	serverLog(LL_LOG,"len: %d alloc: %d",SDS_HDR(8,t)->len,SDS_HDR(8,t)->alloc);
+    sds	t = sdsempty();
+	t = sdscat(t,"init");
+	test(t);
+	serverLog(LL_LOG,"test p: %s ",t);
+
+    test2(t);
+    serverLog(LL_LOG,"test2: %s",t);
+    
+    test3(t);
+    serverLog(LL_LOG,"test2: %s",t);
+    
+    int i = 1;
+    while (i<4) {
+        t = sdscat(t,"nn");
+        i++;
+    } 
+    serverLog(LL_LOG,"test4: %s",t);
+	addReply(c,shared.ok);
+	
 }
 
 

@@ -1,8 +1,10 @@
 #include "server.h"
 
-vertice *createVertice(sds oids){
+vertice *createVertice(){
 	vertice *v = zmalloc(sizeof(vertice));
-	v->oids = sdsnew(oids);
+	//v->oids = sdsnew(oids);
+	//v->oids = NULL;
+	//if (oids) v->oids = sdsnew(oids);
 	v->ledge = NULL;
 	v->redge = NULL;
 	return v;
@@ -74,13 +76,13 @@ void removeLastAddEdge(list *space) {
 	}	
 }
 
-int findClass(sds ufs, char *v) {
+int findClass(sds ufs, sds v) {
     int len;
     int result = -1;
     sds *elements = sdssplitlen(ufs,sdslen(ufs),"/",1,&len);
 
     for (int i = 0; i < len; i++) {
-        if (strchr(elements[i], *v)) {
+        if (strstr(elements[i], v)) {
             result = i;
             break;
         }
@@ -157,8 +159,10 @@ void otUfs(sds ufs, robj **op1, robj **op2, dedge *e1, dedge *e2, int flag) {
             otop2[1] = createObject(OBJ_STRING,sargv);
             serverLog(LL_LOG,"shared.unionot.refcount: %d, shared.splitot.refcount: %d",shared.unionot->refcount,shared.splitot->refcount);
             
-			int uargv1len = sdslen(uargv1);
-			int uargv2len = sdslen(uargv2);
+			//int uargv1len = sdslen(uargv1);
+			//int uargv2len = sdslen(uargv2);
+			int uargv1len = strchr(uargv1,',')==NULL?1:2;
+			int uargv2len = strchr(uargv2,',')==NULL?1:2;
 			if (uargv1len == 1 && uargv2len == 1) {
 				if (!sdscmp(uargv1,uargv2)) {
 					otop1[1] = createObject(OBJ_STRING,uargv1);
@@ -291,16 +295,17 @@ void otUfs(sds ufs, robj **op1, robj **op2, dedge *e1, dedge *e2, int flag) {
             //otop2[0] = createStringObject("unionot",7);
             otop2[0] = shared.unionot;
 
-			int uargv1len = sdslen(uargv1);
-			int uargv2len = sdslen(uargv2);
-			
+			//int uargv1len = sdslen(uargv1);
+			//int uargv2len = sdslen(uargv2);
+			int uargv1len = strchr(uargv1,',')==NULL?1:2;
+			int uargv2len = strchr(uargv2,',')==NULL?1:2;
 			if (uargv1len == 1 && uargv2len == 1) {
 				if (!sdscmp(uargv1,uargv2)) {
 					otop2[1] = createObject(OBJ_STRING,uargv1);
 					otop2[2] = createObject(OBJ_STRING,uargv2);
 				} else if (!strcmp(uargv1,"*") || !strcmp(uargv2,"*")) {
-					otop1[1] = createObject(OBJ_STRING,uargv1);
-					otop1[2] = createObject(OBJ_STRING,uargv2);
+					otop2[1] = createObject(OBJ_STRING,uargv1);
+					otop2[2] = createObject(OBJ_STRING,uargv2);
 				} else if (!sdscmp(uargv1,sargv)) {
 					otop2[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
 					otop2[2] = createObject(OBJ_STRING,uargv2);
@@ -440,7 +445,8 @@ void otUfs(sds ufs, robj **op1, robj **op2, dedge *e1, dedge *e2, int flag) {
 				uargv1 = op1[1]->ptr;
 				uargv2 = op1[2]->ptr;
 				sargv = op2[1]->ptr;
-				sargvlen = sdslen(sargv);	
+				//sargvlen = sdslen(sargv);	
+				sargvlen = strchr(sargv,',')==NULL?1:2;
 				
 				otop1 = zmalloc(sizeof(robj *)*3);
 				otop2 = zmalloc(sizeof(robj *)*2);
@@ -500,7 +506,9 @@ void otUfs(sds ufs, robj **op1, robj **op2, dedge *e1, dedge *e2, int flag) {
 				uargv1 = op2[1]->ptr;
 				uargv2 = op2[2]->ptr;
 				sargv = op1[1]->ptr;
-				sargvlen = sdslen(sargv);	
+				//sargvlen = sdslen(sargv);
+				sargvlen = strchr(sargv,',')==NULL?1:2;
+					
 				otop1 = zmalloc(sizeof(robj *)*2);
 				otop2 = zmalloc(sizeof(robj *)*3);
 				//otop2[0] = createStringObject("unionot",7);
@@ -537,12 +545,12 @@ void otUfs(sds ufs, robj **op1, robj **op2, dedge *e1, dedge *e2, int flag) {
                         sds *elements = sdssplitlen(sargv,sdslen(sargv),",",1,&len);
                         if (findClass(ufs,uargv1) == findClass(ufs,uargv2)) {
 					   		if (find(elements,uargv1,len) && find(elements,uargv2,len)) {
-					   			otop2[1] = createObject(OBJ_STRING,sargv);
+					   			otop1[1] = createObject(OBJ_STRING,sargv);
 					   		} else if (find(elements,uargv1,len) || find(elements,uargv2,len)) {
                                 sds argv = sdsnew("*");
-                                otop2[1] = createObject(OBJ_STRING,argv);
+                                otop1[1] = createObject(OBJ_STRING,argv);
                             } else {
-                                otop2[1] = createObject(OBJ_STRING,sargv);
+                                otop1[1] = createObject(OBJ_STRING,sargv);
                             }
                         } else {
 							//a and b from different classes, consider a/b is in c(set) 
@@ -588,6 +596,7 @@ void otUfs(sds ufs, robj **op1, robj **op2, dedge *e1, dedge *e2, int flag) {
 	e2->argv = otop2;
 }
 
+/***
 vertice *locateVertice(list* space, sds ctx) {
 	if (listLength(space)) {
 		//local processing (new generated operation)
@@ -612,12 +621,206 @@ vertice *locateVertice(list* space, sds ctx) {
 			listRewind(space,&li);
 			while((ln = listNext(&li))) {
 				vertice *v = ln->value;
-				serverLog(LL_LOG,"locateVerticeFunction: v: %s %s, ctx: %s",v->oids, v->content,ctx);
+				//serverLog(LL_LOG,"locateVerticeFunction: v: %s %s, ctx: %s",v->oids, v->content,ctx);
 				//only require v->oids and ctx has the same operations, not need the same order
 				if (!sdscntcmp(v->oids,ctx)) return v; 
 			}			
 		}
 	} else {
+		return NULL;
+	}
+}
+***/
+
+/***used for local processing
+vertice *locateLVertice(list* space, sds ctx){
+    listNode *ln;
+	listIter li;
+	
+	listRewind(space,&li);			
+	while((ln = listNext(&li))) {
+		vertice *v = ln->value;
+		if (!v->ledge && !v->redge) {
+			//serverLog("locateVertice: oids: %s ufs: %s ",v->oids,v->content);
+			return v;
+		}	
+	}
+}
+
+vertice *locateLVertice(vertice* q, sds ctx){
+    vertice* t = NULL;
+    if (q) {
+        if (!q->ledge && !q->redge) {
+            return q;
+        } 
+        if (q->ledge) {
+            t = locateLVertice(q->ledge->adjv,oids);
+        } 
+        if (t) return t;
+        if (q->redge) t = locateLVertice(q->redge->adjv,oids);
+        return t;
+    } else {
+        return NULL;
+    }
+}
+***/
+
+/*oids is used to construct the oids of vertice*/
+/****
+vertice *locateLVertice(vertice* q, sds oids){
+    vertice* t = NULL;
+    sds ltemp = NULL;
+    sds rtemp = NULL;
+    if (oids) {
+        ltemp = sdsempty();
+        rtemp = sdsempty();
+        ltemp = sdscat(ltemp,oids);
+        rtemp = sdscat(rtemp,oids);
+    }
+    //serverLog(LL_LOG,"locatevertice: oids: %s ",oids);
+    if (q) {
+        if (!q->ledge && !q->redge) {
+            return q;
+        } 
+        if (q->ledge) {
+            if (ltemp) {
+                ltemp = sdscat(ltemp,",");
+                ltemp = sdscat(ltemp,q->ledge->oid);
+                //serverLog(LL_LOG,"locatevertice: ledge loids: %s ",ltemp);
+            }
+            t = locateLVertice(q->ledge->adjv,ltemp);
+        } 
+        if (t) {
+            sdsfree(oids);
+            oids = sdsempty();
+            oids = sdscat(oids,ltemp);
+            if (!ltemp) sdsfree(ltemp);
+            if (!rtemp) sdsfree(rtemp);
+            serverLog(LL_LOG,"locatevertice: ledge return: %s ",oids);
+            return t;
+        }    
+        if (q->redge) {
+            if (rtemp) {
+                rtemp = sdscat(rtemp,",");        
+                rtemp = sdscat(rtemp,q->redge->oid);
+                //serverLog(LL_LOG,"locatevertice: redge roids: %s ",rtemp);
+            }
+            t = locateLVertice(q->redge->adjv,rtemp);
+        }
+        sdsfree(oids);
+        oids = sdsempty();
+        oids = sdscat(oids,rtemp);
+        if (!ltemp) sdsfree(ltemp);
+        if (!rtemp) sdsfree(rtemp);
+        serverLog(LL_LOG,"locatevertice: redge return: %s ",oids);
+        return t;
+    } else {
+        return NULL;
+    }
+}
+***/
+
+//***
+vertice *locateLVertice(vertice* v){
+    vertice *q = v;
+    while (q) {
+        if (!q->ledge && !q->redge) {
+            return q;
+        } 
+        if (q->ledge) {
+             q = q->ledge->adjv;
+        } else {
+            q = q->redge->adjv;
+        }
+    }
+    if (!q) serverLog(LL_LOG,"locate to the last vertice fail"); 
+}
+/**/
+
+sds calculateOids(vertice* v, sds oids){
+    //serverLog(LL_LOG,"locatevertice: oids: %s ",oids);
+    vertice *q = v;
+    while (q) {
+        if (!q->ledge && !q->redge) {
+            //serverLog(LL_LOG,"locateLVertice return q: %s",t);
+            return oids;
+        } 
+        if (q->ledge) {
+             oids = sdscat(oids,",");
+             oids = sdscat(oids,q->ledge->oid);
+             q = q->ledge->adjv;
+        } else {
+            oids = sdscat(oids,",");
+            oids = sdscat(oids,q->redge->oid);
+            q = q->redge->adjv;
+        }
+    }
+}
+
+
+vertice *locateRVertice(vertice* q, sds ctx, sds t) {
+    sds temp = sdsnew(t); 
+    sds ltemp = sdsnew(temp);
+    sds rtemp = sdsnew(temp);
+    vertice* lresult = NULL;
+    vertice* rresult = NULL;
+	if (q) {
+	    if ((!strcmp(ctx,"init") && !strcmp(t,"init")) || !sdscntcmp(temp,ctx)) {
+            sdsfree(temp);
+            sdsfree(ltemp);
+            sdsfree(rtemp);
+            serverLog(LL_LOG,"locateRVertice: return vertex q: %s %s",t,q->content);
+		    return q;
+		}			
+		if (q->ledge) {
+		    ltemp = sdscat(ltemp,",");
+		    ltemp = sdscat(ltemp,q->ledge->oid);
+            lresult = locateRVertice(q->ledge->adjv,ctx,ltemp);
+        }
+        if (lresult) {
+            sdsfree(temp);
+            sdsfree(ltemp);
+            sdsfree(rtemp);
+            return lresult;
+        } 
+		if (q->redge) {
+		    rtemp = sdscat(rtemp,",");
+		    rtemp = sdscat(rtemp,q->redge->oid);
+            rresult = locateRVertice(q->redge->adjv,ctx,rtemp);
+        }
+        
+        sdsfree(temp);
+        sdsfree(ltemp);
+        sdsfree(rtemp);
+        if (!rresult){
+            serverLog(LL_LOG,"2D state space does not have the vertice");
+		}
+		return rresult;
+	} else {
+	    return NULL;
+	}
+}
+
+//each vertice does not have oids
+vertice *locateVertice(list* space, sds ctx) {
+	if (listLength(space)) {
+		//local processing (new generated operation)
+		//serverLog(LL_LOG,"locatevertice local processing");
+		if (!ctx) {
+            return locateLVertice(space->head->value);
+		}
+		else {
+			//remote processing (received operation)
+			//serverLog(LL_LOG,"locatevertice remote processing");
+			sds temp = sdsnew("init");
+			vertice* result = locateRVertice(space->head->value,ctx,temp);
+			sdsfree(temp);
+			if (!result) serverLog(LL_LOG,"2D state space does not exist the vertex");
+			//if (result) serverLog(LL_LOG,"locateRVertice: return result: %s %s",result->oids,result->content);
+			return result;    
+	    }
+	} else {
+	    serverLog(LL_LOG,"space has no elements");
 		return NULL;
 	}
 }

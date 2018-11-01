@@ -1411,8 +1411,12 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
         }
     } else if (nread == 0) {
         serverLog(LL_VERBOSE, "Client closed connection");
+        
         freeClient(c);
         return;
+        
+        
+        return;        
     } else if (c->flags & CLIENT_MASTER) {
         /* Append the query buffer to the pending (not applied) buffer
          * of the master. We'll use this buffer later in order to have a

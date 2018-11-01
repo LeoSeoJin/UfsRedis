@@ -879,6 +879,7 @@ struct clusterState;
 #define CHILD_INFO_TYPE_RDB 0
 #define CHILD_INFO_TYPE_AOF 1
 
+/*matrix for ufs*/
 typedef struct edge{        
     int adjvex;            
     struct edge *nextedge;        
@@ -901,7 +902,7 @@ typedef struct dssEdge {
 }dedge;
 
 typedef struct vertice{
-	sds oids;
+	//sds oids;
 	sds content;
     dedge *ledge;
 	dedge *redge;
@@ -919,6 +920,7 @@ extern sdss* sspacelist;
 //extern list* space; //each item is a vertice*
 extern cdss* cspacelist; 
 extern int op_num;
+//extern sds locateoids;
 
 struct redisServer {
 	/*ufs object*/
@@ -1889,8 +1891,11 @@ uint64_t redisBuildId(void);
 //void ot(sds ufs, robj** op1, robj **op2, dedge *e1, dedge *e2, int flag);
 void otUfs(sds ufs, robj** op1, robj **op2, dedge *e1, dedge *e2, int flag);
 dedge *createOpEdge(robj **argv, sds oid, vertice *v);
-vertice *createVertice(sds oids);
+vertice *createVertice();
 vertice *locateVertice(list *space, sds ctx);
+sds calculateOids(vertice *p, sds oids);
+//vertice *createVertice(sds oids);
+//vertice *locateVertice(list *space, sds ctx);
 int locateVex(cudGraph *ufs, char *e);
 int existEdge(cudGraph *ufs,int v1, int v2);
 int isConnected(cudGraph *ufs,sds *elements, int len);
@@ -1908,7 +1913,7 @@ void testCommand(client *c);
 
 void unionotCommand(client *c);
 void splitotCommand(client *c);
-void uaddCommand(client *c);
+void uinitCommand(client *c);
 
 void authCommand(client *c);
 void pingCommand(client *c);
