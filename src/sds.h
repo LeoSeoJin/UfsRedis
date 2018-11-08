@@ -214,12 +214,6 @@ static inline void sdssetalloc(sds s, size_t newlen) {
     }
 }
 
-/*new defined sds functions*/
-sds sdsDel(sds list, sds c); 
-int find(sds *list, char *v, int len);
-int findSds(sds list, sds s);
-int sdscntcmp(sds s1, sds s2);
-
 sds sdsnewlen(const void *init, size_t initlen);
 sds sdsnew(const char *init);
 sds sdsempty(void);

@@ -756,12 +756,11 @@ struct sharedObjectsStruct {
     *unsubscribebulk, *psubscribebulk, *punsubscribebulk, *del, *unlink,
     *rpop, *lpop, *lpush, *emptyscan,
     *argv1nosameclass, *argv2nosameclass, *argv12nosameclass,*argvsplitnosameclass,*argvnoexistelem,*argvnoexistallelems, *argvuaddexistufs,
-  	*unionot, *splitot,
     *select[PROTO_SHARED_SELECT_CMDS],
     *integers[OBJ_SHARED_INTEGERS],
     *mbulkhdr[OBJ_SHARED_BULKHDR_LEN], /* "*<value>\r\n" */
     *bulkhdr[OBJ_SHARED_BULKHDR_LEN];  /* "$<value>\r\n" */
-    sds minstring, maxstring, sdsunionot, sdssplitot;
+    sds minstring, maxstring, star;
 };
 
 /* ZSETs use a specialized version of Skiplists */
@@ -895,15 +894,18 @@ typedef struct vertex{
 struct vertice;
 
 typedef struct dssEdge {
-	robj **argv;
+	//robj **argv;
 	//sds ctx;
-	sds oid;
+	int optype;
+	char *oid;
+	char *argv1;
+	char *argv2;
 	struct vertice *adjv;
 }dedge;
 
 typedef struct vertice{
 	//sds oids;
-	sds content;
+	char *content;
     dedge *ledge;
 	dedge *redge;
 } vertice;
@@ -1270,7 +1272,7 @@ typedef struct pubsubPattern {
 
 typedef void redisCommandProc(client *c);
 typedef int *redisGetKeysProc(struct redisCommand *cmd, robj **argv, int argc, int *numkeys);
-typedef void otProc(sds ufs, robj** op1, robj **op2, dedge *e1, dedge *e2, int flag);
+typedef void otProc(sds ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag);
 
 struct redisCommand {
     char *name;
@@ -1688,7 +1690,8 @@ void serverLog(int level, const char *fmt, ...)
 void serverLog(int level, const char *fmt, ...);
 #endif
 void serverLogCmd(client *c);
-void serverLogArgv(robj **argv);
+//void serverLogArgv(robj **argv);
+void serverLogArgv(dedge *e);
 
 void serverLogRaw(int level, const char *msg);
 void serverLogFromHandler(int level, const char *msg);
@@ -1889,13 +1892,17 @@ uint64_t redisBuildId(void);
 
 /*new defined functions*/
 //void ot(sds ufs, robj** op1, robj **op2, dedge *e1, dedge *e2, int flag);
-void otUfs(sds ufs, robj** op1, robj **op2, dedge *e1, dedge *e2, int flag);
-dedge *createOpEdge(robj **argv, sds oid, vertice *v);
+//void otUfs(sds ufs, robj** op1, robj **op2, dedge *e1, dedge *e2, int flag);
+void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag);
+
+dedge *createOpEdge(int type, char *t1, char *t2, char *oid, vertice *v);
+dedge *createOpEdge1(int type, sds o, vertice *v);
+dedge *createOpEdge2(int t,vertice *v);
+
+dedge *setOpedgeOp(dedge *e, char *t1,char* t2);
 vertice *createVertice();
 vertice *locateVertice(list *space, sds ctx);
 sds calculateOids(vertice *p, sds oids);
-//vertice *createVertice(sds oids);
-//vertice *locateVertice(list *space, sds ctx);
 int locateVex(cudGraph *ufs, char *e);
 int existEdge(cudGraph *ufs,int v1, int v2);
 int isConnected(cudGraph *ufs,sds *elements, int len);
@@ -1904,10 +1911,15 @@ void createLinks(cudGraph *ufs,int i, int j);
 void removeEdge(cudGraph *ufs,sds v1, char *v2);
 void removeAdjEdge(cudGraph *ufs,char *v, sds *list, int len);
 
+
+/*new defined sds functions*/
+sds sdsDel(char *list, char *c); 
+int find(sds *list, char *v, int len);
+int findSds(sds list, char *s);
+int sdscntcmp(char *s1, char *s2);
+
 /* Commands prototypes */
-void unionCommand(client *c);
 void findCommand(client *c);
-void splitCommand(client *c);
 void umembersCommand(client *c);
 void testCommand(client *c);
 

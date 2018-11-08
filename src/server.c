@@ -130,11 +130,11 @@ int op_num = 0;
  *    are not fast commands.
  */
 struct redisCommand redisCommandTable[] = {
-	{"union",unionCommand,4,"r",0,NULL,NULL,0,0,0,0,0},
+	//{"union",unionCommand,4,"r",0,NULL,NULL,0,0,0,0,0},
 	{"find",findCommand,3,"r",0,NULL,NULL,0,0,0,0,0},
-	{"split",splitCommand,3,"r",0,NULL,NULL,0,0,0,0,0},
+	//{"split",splitCommand,3,"r",0,NULL,NULL,0,0,0,0,0},
 	{"umembers",umembersCommand,2,"r",0,NULL,NULL,0,0,0,0,0}, //add a simple cmd to print "hello world" to logfile
-	{"test",testCommand,1,"r",0,NULL,NULL,0,0,0,0,0},
+	{"test",testCommand,-1,"r",0,NULL,NULL,0,0,0,0,0},
 	{"unionot",unionotCommand,-1,"r",0,NULL,otUfs,0,0,0,0,0},
 	{"splitot",splitotCommand,-1,"r",0,NULL,otUfs,0,0,0,0,0},	
 	{"uinit",uinitCommand,3,"r",0,NULL,NULL,0,0,0,0,0},
@@ -395,7 +395,7 @@ void serverLogCmd(client *c) {
 		case 4: serverLog(LL_LOG,"cmd: %s %s %s %s client: %d %d %d ", 
 		                (char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,c->replstate, c->flags, c->slave_listening_port);break;
 		case 5:
-		//*** 
+		/*** 
 		{if(!strcmp(c->argv[0]->ptr,"splitot")) {
  				serverLog(LL_LOG,"cmd: %s %s %s client: %d %d %d ", 
 		                (char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, c->replstate, c->flags, c->slave_listening_port);
@@ -403,25 +403,25 @@ void serverLogCmd(client *c) {
 				serverLog(LL_LOG,"cmd: %s %s %s %s %s client: %d %d %d ", 
 				(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,c->replstate, c->flags, c->slave_listening_port);} 
 				break;}
-		/**/
-		/****
+		**/
+		/****/
 		serverLog(LL_LOG,"cmd: %s %s %s %s %s client: %d %d %d ", (char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,c->replstate, c->flags, c->slave_listening_port);
 				break;
-	    ***/	
+	    /***/	
 		case 6: 
-		//****
+		/****
 		{if(!strcmp(c->argv[0]->ptr,"unionot")) {
 				serverLog(LL_LOG,"cmd: %s %s %s %s client: %d %d %d ", 
 				(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,c->replstate, c->flags, c->slave_listening_port);
 			} else {serverLog(LL_LOG,"cmd: %s %s %s %s %s %s client: %d %d %d ", 
 		(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,(char *)c->argv[5]->ptr,c->replstate, c->flags, c->slave_listening_port); }
 			break;}
+		***/
 		/***/
-		/***
 		serverLog(LL_LOG,"cmd: %s %s %s %s %s %s client: %d %d %d ", 
 		(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,(char *)c->argv[5]->ptr,c->replstate, c->flags, c->slave_listening_port); 
 			break;
-	    ***/
+	    /***/
 		case 7: serverLog(LL_LOG,"cmd: %s %s %s %s %s %s %s client: %d %d %d ", 
 		(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,(char *)c->argv[5]->ptr,(char *)c->argv[6]->ptr,c->replstate, c->flags, c->slave_listening_port); break;
 		case 8: serverLog(LL_LOG,"cmd: %s %s %s %s %s %s %s %s client: %d %d %d ", 
@@ -432,6 +432,7 @@ void serverLogCmd(client *c) {
 	}	
 }
 
+/**
 void serverLogArgv(robj **argv) {
 	if (!argv) {
 		serverLog(LL_LOG,"error argv is null");
@@ -445,6 +446,21 @@ void serverLogArgv(robj **argv) {
 	if (argv[0] == shared.unionot)
 		serverLog(LL_LOG,"cmd(ot): %s %s %s ", (char *)argv[0]->ptr, (char *)argv[1]->ptr,(char *)argv[2]->ptr);
 }
+**/
+void serverLogArgv(dedge *e) {
+    if (!e) {
+       serverLog(LL_LOG,"error argv is null");
+       return;
+    }
+    //serverLog(LL_LOG,"serverLogArgv: cmd: %s",argv[0]->ptr);
+    //if (!strcmp(argv[0]->ptr,"splitot")) 
+    if (e->optype == 2)
+       serverLog(LL_LOG,"cmd(ot): splitot %s ", (char *)e->argv1);
+    //if (!strcmp(argv[0]->ptr,"unionot")) 
+    if (e->optype == 1)
+       serverLog(LL_LOG,"cmd(ot): unionot %s %s ", (char *)e->argv1,(char *)e->argv2);
+}
+
 /*
 void serverLogCmd(client *c) {
 	int argument_num = c->argc;
@@ -1457,10 +1473,7 @@ void createSharedObjects(void) {
         "-Some elements do not exist in the union-find-split!\r\n"));
     shared.argvuaddexistufs = createObject(OBJ_STRING,sdsnew(
     	"-The union-find-split has existed!\r\n"));
-    shared.unionot = createStringObject("unionot",7);
-    shared.splitot = createStringObject("splitot",7);
-    shared.sdsunionot = sdsnew("unionot");
-    shared.sdssplitot = sdsnew("splitot");
+    shared.star = sdsnew("*");
 }
 
 
@@ -2260,6 +2273,13 @@ void propagateToMaster(struct redisCommand *cmd, int dbid, robj **argv, int argc
         //replicationFeedSlaves(server.slaves,dbid,argv,argc
 		serverLog(LL_LOG,"propagateToMaster: replicationFeedMaster");
 		replicationFeedMaster(dbid,argv,argc);
+		
+		if (argc == 6) 
+		    decrRefCount(argv[5]);
+		else
+		    decrRefCount(argv[2]);
+        decrRefCount(argv[3]);
+        decrRefCount(argv[4]);
 	}
 }
 
@@ -2269,8 +2289,16 @@ void propagateExSlave(struct redisCommand *cmd, int dbid, uint64_t id, robj **ar
 {
     if (server.aof_state != AOF_OFF && flags & PROPAGATE_AOF)
         feedAppendOnlyFile(cmd,dbid,argv,argc);
-    if (flags & PROPAGATE_REPL)
+    if (flags & PROPAGATE_REPL) 
         replicationFeedExSlave(server.slaves,dbid,id,argv,argc);
+        
+    if (argc == 6) {//124  13
+	    decrRefCount(argv[2]);
+	    decrRefCount(argv[4]);
+	} else {
+	    decrRefCount(argv[3]);
+	}
+    decrRefCount(argv[1]);
 }
 
 /* Used inside commands to schedule the propagation of additional commands

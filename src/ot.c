@@ -1,5 +1,119 @@
 #include "server.h"
 
+/*list: sds t: char**/
+sds sdsDel(sds list, char *t) {
+    serverLog(LL_LOG,"sdsDel %s from %s",t,list);
+	int len,num,i,j,k;
+
+	sds *elements = sdssplitlen(list,sdslen(list),",",1,&len);
+    sds *del = sdssplitlen(t,strlen(t),",",1,&num);
+    
+    for (i = 0; i < len; i++) {
+        for (j = 0; j < num; j++) {
+	        if (!sdscmp(elements[i],del[j])) {
+	            //**
+		        for (k = i; k < len-1; k++) {
+		            //serverLog(LL_LOG,"del %s",elements[k]);
+			        sdsclear(elements[k]);
+			        elements[k] = sdscat(elements[k],elements[k+1]);
+			    }
+			    for (k = j; k < num-1; k++) {
+                    sdsclear(del[k]);
+                    del[k] = sdscat(del[k],del[k+1]);
+			    }
+			    len--;
+			    num--;
+			    i--;
+			    /**/
+			    //elements[i] = sdstrim(elements[i],del[j]);
+			    break;
+        	}
+    	}
+   	}
+   	
+   	sdsfree(list);
+   	list = sdsempty();
+   	for (i = 0; i < len; i++) {
+   		if (sdslen(elements[i]) != 0)   list = sdscat(list,elements[i]);
+   		if (i != len-1) list = sdscat(list,",");
+   	}
+
+   	sdsfreesplitres(elements,len);
+   	sdsfreesplitres(del,num);
+
+   	return list;
+}
+
+/*v: sds/char* */
+int find(sds *list, char *v, int len) {
+	for (int i = 0; i < len; i++) {
+	    //serverLog(LL_LOG,"find %s from %s",v,list[i]);
+		if (!sdscmp(list[i], v) || !strcmp(list[i],v)) return 1;	
+	}
+	return 0;
+}
+
+/*Used for cpltClass function in ot.c, (sds char*)*/
+int findSds(sds list, char *f) {
+    //serverLog(LL_LOG,"findSds %s from %s",f,list);
+    sds s = sdsempty();
+    s = sdscat(s,f);
+    
+    int len, result;
+    sds *elements = sdssplitlen(s,sdslen(s),",",1,&len);
+    
+    //int num;
+    //sds *classelements = sdssplitlen(list,sdslen(list),",",1,&num);
+    
+    //serverLog(LL_LOG,"entering find");
+    //if (find(classelements,elements[0],num)) {
+    if (strstr(list,elements[0])) {
+        result = 1;
+    } else {
+        result = 0;
+    }
+    
+    //sdsfreesplitres(classelements,num);
+    sdsfreesplitres(elements,len);
+    return result;
+}
+
+/*Compare contents of two sds, each sds is oids
+ *example(s1):6379_0,6380_1
+ *same content, return 0
+ *t1: sds t2: sds/char*
+ */
+int sdscntcmp(char *t1, char *t2) {
+    sds s1 = sdsempty();
+    sds s2 = sdsempty();
+    s1 = sdscat(s1,t1);
+    s2 = sdscat(s2,t2);
+    
+	int len1,len2,i;                                   
+	sds *oids1 = sdssplitlen(s1,sdslen(s1),",",1,&len1);
+	sds *oids2 = sdssplitlen(s2,sdslen(s2),",",1,&len2);
+	if (len1 != len2) {
+		return 1;
+	} else {
+		for (i = 0; i < len1; i++) {
+			if (!find(oids2, oids1[i], len1)) break; 
+		}
+		if (i == len1) {
+    	    sdsfreesplitres(oids1,len1);
+	    	sdsfreesplitres(oids2,len2);
+	    	sdsfree(s1);
+	    	sdsfree(s2);
+		    return 0;
+		} else {
+    	    sdsfreesplitres(oids1,len1);
+	    	sdsfreesplitres(oids2,len2);		
+	    	sdsfree(s1);
+	    	sdsfree(s2);
+		    return 1;
+		}
+	}
+}
+
 vertice *createVertice(){
 	vertice *v = zmalloc(sizeof(vertice));
 	//v->oids = sdsnew(oids);
@@ -25,25 +139,64 @@ cverlist *createCVerlist(sds key){
 	return list;
 }
 
-dedge *createOpEdge(robj **argv, sds oid, vertice *v) {
-	dedge *e = zmalloc(sizeof(dedge)); 
-	e->argv = argv;
-	//e->ctx = sdsnew(ctx);
-	e->oid = sdsnew(oid);
-	e->adjv = v;
 
+dedge *createOpEdge2(int t,vertice *v) {
+    //serverLog(LL_LOG,"createOpedge1: %d  %s",t,o);
+    dedge *e = zmalloc(sizeof(dedge));
+    e->optype = t;
+    //e->oid = sdsempty();
+    //e->oid = sdscat(e->oid,o);
+    //e->oid = sdsnew(o);
+    e->adjv = v;
+    //serverLog(LL_LOG,"createOpedge1 e: %d  %s",e->optype,e->oid);
+    return e;
+}
+
+dedge *createOpEdge1(int t,char *o,vertice *v) {
+    serverLog(LL_LOG,"createOpedge1: %d  %s",t,o);
+    dedge *e = zmalloc(sizeof(dedge));
+    e->optype = t;
+    e->oid = sdsempty();
+    e->oid = sdscat(e->oid,o);
+    //e->oid = sdsnew(o);
+    e->adjv = v;
+    serverLog(LL_LOG,"createOpedge1 e: %d  %s",e->optype,e->oid);
+    return e;
+}
+
+dedge *createOpEdge(int type, char *t1, char *t2, char *t3, vertice *v) {
+    //serverLog(LL_LOG,"createOpedge: %d %s %s %s",type,t1,t2,t3);
+	dedge *e = zmalloc(sizeof(dedge)); 
+	e->optype = type;
+	e->argv1 = t1;
+	e->argv2 = t2;
+    e->oid = t3;
+	e->adjv = v;
+	serverLog(LL_LOG,"createOpedge e: %d %s %s %s",e->optype,e->argv1,e->argv2,e->oid);
+	//serverLog(LL_LOG,"createOpedge2: %d %s %s %s",type,t1,t2,t3);
 	return e;
 }
 
+dedge *setOpedgeOp(dedge *e, sds t1, sds t2) {
+    //e->optype = t;
+    e->argv1 = sdsnew(t1);
+    e->argv2 = sdsnew(t2);
+    return e;
+}
+
+void setOp(dedge *e, int t, sds t1, sds t2) {
+    e->optype = t;
+    e->argv1 = t1;
+    e->argv2 = t2;
+}
+
 void removeOpEdge(dedge *edge) {
-	if (!strcmp(edge->argv[0]->ptr,"unionot")) {
-		zfree(edge->argv[1]);
-		zfree(edge->argv[2]);
+	if (edge->optype == OPTYPE_UNION) {
+		sdsfree(edge->argv1);
+		sdsfree(edge->argv2);
 	} else {
-		zfree(edge->argv[1]);
+		sdsfree(edge->argv1);
 	}
-	zfree(edge->argv);
-	
 	sdsfree(edge->oid);
 	//listDelNode(space,edge->adjv);
 	//sdsfree(edge->adjv->oids);
@@ -95,155 +248,147 @@ int findClass(sds ufs, sds v) {
 /*Return the complement class of v in corresponding class
  *ufs is the state of disjoint set
  */
-sds cpltClass(sds ufs, sds v) {
+char* cpltClass(char *ufs, char *v) {
     int len;
-    sds *elements = sdssplitlen(ufs,sdslen(ufs),"/",1,&len);
-	sds result;
+    sds *elements = sdssplitlen(ufs,strlen(ufs),"/",1,&len);
+	sds result = sdsempty();
+	char *c;
     for (int i = 0; i < len; i++) {
         if (findSds(elements[i],v)) {
             elements[i] = sdsDel(elements[i],v);
+            //elements[i] = sdstrim(elements[i],v);
             if (sdslen(elements[i])==0) {
     			//serverLog(LL_LOG,"*********************cpltclass of element is NULL");
     			//sdsfree(result);
-    			result = sdsnew("*");
+    			result = sdscat(result,"*");
     		} else {
-            	result = sdsnew(elements[i]);
+            	result = sdscat(result,elements[i]);
             }
             break;
         } 
     }
-
+       
+    c = (char*)zmalloc(sdslen(result)+1);
+    memcpy(c,result,sdslen(result));
+    c[sdslen(result)] = '\0';
+    
     sdsfreesplitres(elements,len);
-    return result;
+    sdsfree(result);
+    
+    return c;
 }
 
-//void ot(sds ufs, robj **op1, robj **op2, dedge *e1, dedge *e2, int flag) {
-void otUfs(sds ufs, robj **op1, robj **op2, dedge *e1, dedge *e2, int flag) {
-	robj **otop1, **otop2;
-	//sds op1name = op1[0]->ptr;
-	//sds op2name = op2[0]->ptr;
-	sds op1name, op2name;
-	if (op1[0] == shared.unionot) {
-		op1name = shared.sdsunionot;
-	} else {
-		op1name = shared.sdssplitot;
-	}
-	
-	if (op2[0] == shared.unionot) {
-		op2name = shared.sdsunionot;
-	} else {
-		op2name = shared.sdssplitot;
-	}
+void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
+	int otop1type = 0;
+	int otop2type = 0;
+	char *otop1argv1 = NULL;
+	char *otop1argv2 = NULL;
+	char *otop2argv1 = NULL;
+	char *otop2argv2 = NULL;
+
+	int op1type = op1->optype;
+    int op2type = op2->optype;
+    
 	serverLog(LL_LOG,"entering ot function");
 	serverLogArgv(op1);
 	serverLogArgv(op2);
 
 	if (flag == 2) {
 		serverLog(LL_LOG,"transform UNION operations");
-		//transform union operations
-		if (!strcmp(op1name,"unionot") && !strcmp(op2name,"splitot")) {
+		if (op1type == OPTYPE_UNION && op2type == OPTYPE_SPLIT) {
 			//serverLog(LL_LOG,"case: union and split");
-			sds uargv1 = op1[1]->ptr;
-			sds uargv2 = op1[2]->ptr;
-			sds sargv = op2[1]->ptr;
+			char *uargv1 = op1->argv1;
+			char *uargv2 = op1->argv2;
+			char *sargv = op2->argv1;
 			
 			serverLog(LL_LOG,"OT process: ufs: %s union %s %s, split %s ", ufs, uargv1, uargv2,sargv);
 
-            otop1 = zmalloc(sizeof(robj *)*3);
-            otop2 = zmalloc(sizeof(robj *)*2);
-            //otop1[0] = createStringObject("unionot",7);
-            //otop2[0] = createStringObject("splitot",7);
-            serverLog(LL_LOG,"shared.unionot.refcount: %d, shared.splitot.refcount: %d",shared.unionot->refcount,shared.splitot->refcount);
-            otop1[0] = shared.unionot;
-            otop2[0] = shared.splitot;
-            otop2[1] = createObject(OBJ_STRING,sargv);
-            serverLog(LL_LOG,"shared.unionot.refcount: %d, shared.splitot.refcount: %d",shared.unionot->refcount,shared.splitot->refcount);
-            
-			//int uargv1len = sdslen(uargv1);
-			//int uargv2len = sdslen(uargv2);
+            otop1type = OPTYPE_UNION;
+            otop2type = OPTYPE_SPLIT;
+            otop2argv1 = sargv;
 			int uargv1len = strchr(uargv1,',')==NULL?1:2;
 			int uargv2len = strchr(uargv2,',')==NULL?1:2;
+			
 			if (uargv1len == 1 && uargv2len == 1) {
 				if (!sdscmp(uargv1,uargv2)) {
-					otop1[1] = createObject(OBJ_STRING,uargv1);
-					otop1[2] = createObject(OBJ_STRING,uargv2);			
+					otop1argv1 = uargv1;
+					otop1argv2 = uargv2;
 				} else if (!strcmp(uargv1,"*") || !strcmp(uargv2,"*")) {
-					otop1[1] = createObject(OBJ_STRING,uargv1);
-					otop1[2] = createObject(OBJ_STRING,uargv2);
+					otop1argv1 = uargv1;
+					otop1argv2 = uargv2;					
 				} else if (!sdscmp(uargv1,sargv)) {
-					//serverLog(LL_LOG,"uargv1 == sargv");
-					otop1[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
-					otop1[2] = createObject(OBJ_STRING,uargv2);
+					otop1argv1 = cpltClass(ufs,sargv);
+					otop1argv2 = uargv2;
 				} else if (!sdscmp(uargv2,sargv)) {
-					otop1[1] = createObject(OBJ_STRING,uargv1);
-					otop1[2] = createObject(OBJ_STRING,cpltClass(ufs,sargv));	
+					otop1argv1 = uargv1;
+					otop1argv2 = cpltClass(ufs,sargv);
 				} else {
-					otop1[1] = createObject(OBJ_STRING,uargv1);
-					otop1[2] = createObject(OBJ_STRING,uargv2);		
+					otop1argv1 = uargv1;
+					otop1argv2 = uargv2;	
 				}
 			}
 			if (uargv1len > 1 && uargv2len == 1) {
 				int len;
-				sds *elements = sdssplitlen(uargv1,sdslen(uargv1),",",1,&len);
+				sds *elements = sdssplitlen(uargv1,strlen(uargv1),",",1,&len);
 				if (find(elements,uargv2,len)) {
 					//b in a
 					if (find(elements,sargv,len)) {
 					    //c in a
-						otop1[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));		
+						otop1argv1 = cpltClass(ufs,sargv);
 						if (sdscmp(uargv2,sargv)) {
 						    //b != c
-							otop1[2] = createObject(OBJ_STRING,uargv2);
+							otop1argv2 = uargv2;
 						} else {
 						    //b == c 
-						    otop1[2] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						    otop1argv2 = cpltClass(ufs,sargv);
 						}
 					} else {
 					    //c not in a
-						otop1[1] = createObject(OBJ_STRING,uargv1);
-						otop1[2] = createObject(OBJ_STRING,uargv2);
+					    otop1argv1 = uargv1;
+					    otop1argv2 = uargv2;
 					}
 				} else {
 				    //b not in a
 					if (find(elements,sargv,len)) {
 					    //c in a
-						otop1[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop1argv1 = cpltClass(ufs,sargv);
 					} else {
 					    //c not in a
-						otop1[1] = createObject(OBJ_STRING,uargv1);
+						otop1argv1 = uargv1;
 					}
 					if (!sdscmp(uargv2,sargv)){
-						otop1[2] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop1argv2 = cpltClass(ufs,sargv);
 					} else {
-						otop1[2] = createObject(OBJ_STRING,uargv2);
+						otop1argv2 = uargv2;
 					}
 				}
 				sdsfreesplitres(elements,len);
 			}
 			if (uargv1len == 1 && uargv2len > 1) {
 				int len;
-				sds *elements = sdssplitlen(uargv2,sdslen(uargv2),",",1,&len);
+				sds *elements = sdssplitlen(uargv2,strlen(uargv2),",",1,&len);
 				if (find(elements,uargv1,len)) {
 					if (find(elements,sargv,len)) {
-						otop1[2] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop1argv2 = cpltClass(ufs,sargv);
 						if (sdscmp(uargv1,sargv)) {
-							otop1[1] = createObject(OBJ_STRING,uargv1);	
+							otop1argv1 = uargv1;
 						} else {
-							otop1[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+							otop1argv1 = cpltClass(ufs,sargv);
 						}
 					} else {
-						otop1[1] = createObject(OBJ_STRING,uargv1);
-						otop1[2] = createObject(OBJ_STRING,uargv2);
+						otop1argv1 = uargv1;
+						otop1argv2 = uargv2;
 					}
 				} else {
 					if (find(elements,sargv,len)) {
-						otop1[2] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop1argv2 = cpltClass(ufs,sargv);
 					} else {
-						otop1[2] = createObject(OBJ_STRING,uargv2);
+						otop1argv2 = uargv2;
 					}
 					if (!sdscmp(uargv1,sargv)){
-						otop1[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop1argv1 = cpltClass(ufs,sargv);
 					} else {
-						otop1[1] = createObject(OBJ_STRING,uargv1);
+						otop1argv1 = uargv1;
 					}
 				}
 				sdsfreesplitres(elements,len);
@@ -252,126 +397,120 @@ void otUfs(sds ufs, robj **op1, robj **op2, dedge *e1, dedge *e2, int flag) {
 				if (!sdscntcmp(uargv1,uargv2)) { 
 				    //a and b are sets, a == b 
 					int len;
-					sds *elements = sdssplitlen(uargv1,sdslen(uargv1),",",1,&len); 
+					sds *elements = sdssplitlen(uargv1,strlen(uargv1),",",1,&len); 
 					if (find(elements,sargv,len)) {
 					    //c in a/b
-						otop1[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
-						otop1[2] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop1argv1 = cpltClass(ufs,sargv);
+						otop1argv2 = cpltClass(ufs,sargv);
 					} else {
-						otop1[1] = createObject(OBJ_STRING,uargv1);
-						otop1[2] = createObject(OBJ_STRING,uargv2);
+						otop1argv1 = uargv1;
+						otop1argv2 = uargv2;
 					}
 					sdsfreesplitres(elements,len);
 				} else {
 				    //a,b are sets, a != b
 					int len1,len2;
-					sds *elements1 = sdssplitlen(uargv1,sdslen(uargv1),",",1,&len1);
-					sds *elements2 = sdssplitlen(uargv2,sdslen(uargv2),",",1,&len2);
+					sds *elements1 = sdssplitlen(uargv1,strlen(uargv1),",",1,&len1);
+					sds *elements2 = sdssplitlen(uargv2,strlen(uargv2),",",1,&len2);
 					
 					if (find(elements1,sargv,len1)) {
-						otop1[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop1argv1 = cpltClass(ufs,sargv);
 					} else {
-						otop1[1] = createObject(OBJ_STRING,uargv1);
+						otop1argv1 = uargv1;
 					}
 					if (find(elements2,sargv,len2)){
-						otop1[2] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop1argv2 = cpltClass(ufs,sargv);
 					} else {
-						otop1[2] = createObject(OBJ_STRING,uargv2);
+						otop1argv2 = uargv2;
 					}
 					sdsfreesplitres(elements1,len1);
 					sdsfreesplitres(elements2,len2);
 				}
 			}
-		} else if (!strcmp(op1name,"splitot") && !strcmp(op2name,"unionot")) {
-			sds uargv1 = op2[1]->ptr;
-			sds uargv2 = op2[2]->ptr;
-			sds sargv = op1[1]->ptr;
+		} else if (op1type == OPTYPE_SPLIT && op2type == OPTYPE_UNION) {
+			char *uargv1 = op2->argv1;
+			char *uargv2 = op2->argv2;
+			char *sargv = op1->argv1;
 			
-            otop1 = zmalloc(sizeof(robj *)*2);
-            otop2 = zmalloc(sizeof(robj *)*3);
-            //otop1[0] = createStringObject("splitot",7);
-            otop1[0] = shared.splitot;
-			otop1[1] = createObject(OBJ_STRING,sargv);
-            //otop2[0] = createStringObject("unionot",7);
-            otop2[0] = shared.unionot;
-
-			//int uargv1len = sdslen(uargv1);
-			//int uargv2len = sdslen(uargv2);
+            otop1type = OPTYPE_SPLIT;
+            otop1argv1 = sargv;
+            otop2type = OPTYPE_UNION;
+            
 			int uargv1len = strchr(uargv1,',')==NULL?1:2;
 			int uargv2len = strchr(uargv2,',')==NULL?1:2;
 			if (uargv1len == 1 && uargv2len == 1) {
 				if (!sdscmp(uargv1,uargv2)) {
-					otop2[1] = createObject(OBJ_STRING,uargv1);
-					otop2[2] = createObject(OBJ_STRING,uargv2);
+					otop2argv1 = uargv1;
+					otop2argv2 = uargv2;
 				} else if (!strcmp(uargv1,"*") || !strcmp(uargv2,"*")) {
-					otop2[1] = createObject(OBJ_STRING,uargv1);
-					otop2[2] = createObject(OBJ_STRING,uargv2);
+					otop2argv1 = uargv1;
+					otop2argv2 = uargv2;					
 				} else if (!sdscmp(uargv1,sargv)) {
-					otop2[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
-					otop2[2] = createObject(OBJ_STRING,uargv2);
+					otop2argv1 = cpltClass(ufs,sargv);
+					otop2argv2 = uargv2;
 				} else if (!sdscmp(uargv2,sargv)) {
-					otop2[1] = createObject(OBJ_STRING,uargv1);
-					otop2[2] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+					otop2argv1 = uargv1;
+					otop2argv2 = cpltClass(ufs,sargv);
 				} else {
-					otop2[1] = createObject(OBJ_STRING,uargv1);
-					otop2[2] = createObject(OBJ_STRING,uargv2);
+					otop2argv1 = uargv1;
+					otop2argv2 = uargv2;
 				}
 			}
 			if (uargv1len > 1 && uargv2len == 1) {
 				int len;
-				sds *elements = sdssplitlen(uargv1,sdslen(uargv1),",",1,&len);
+				sds *elements = sdssplitlen(uargv1,strlen(uargv1),",",1,&len);
 				if (find(elements,uargv2,len)) { 
 					//b in a
 					if (find(elements,sargv,len)) {
-						otop2[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop2argv1 = cpltClass(ufs,sargv);
 						if (sdscmp(uargv2,sargv)) {
-							otop2[2] = createObject(OBJ_STRING,uargv2);	
+							otop2argv2 = uargv2;
 						} else {
-							otop2[2] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+							otop2argv2 = cpltClass(ufs,sargv);
 						}
 					} else {
-						otop2[1] = createObject(OBJ_STRING,uargv1);
-						otop2[2] = createObject(OBJ_STRING,uargv2);
+						otop2argv1 = uargv1;
+						otop2argv2 = uargv2;
 					}
 				} else {
 					if (find(elements,sargv,len)) {
-						otop2[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop2argv1 = cpltClass(ufs,sargv);
 					} else {
-						otop2[1] = createObject(OBJ_STRING,uargv1);
+						otop2argv1 = uargv1;
 					}
 					if (!sdscmp(uargv2,sargv)){
-						otop2[2] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop2argv2 = cpltClass(ufs,sargv);
 					} else {
-						otop2[2] = createObject(OBJ_STRING,uargv2);
+						otop2argv2 = uargv2;
 					}
 				}
 				sdsfreesplitres(elements,len);
 			}
 			if (uargv1len == 1 && uargv2len > 1) {
 				int len;
-				sds *elements = sdssplitlen(uargv2,sdslen(uargv2),",",1,&len);
+				sds *elements = sdssplitlen(uargv2,strlen(uargv2),",",1,&len);
 				if (find(elements,uargv1,len)) {
 					if (find(elements,sargv,len)) {
-						otop2[2] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop2argv2 = cpltClass(ufs,sargv);
 						if (sdscmp(uargv1,sargv)) {
-							otop2[1] = createObject(OBJ_STRING,uargv1);	
+							otop2argv1 = uargv1;
 						} else {
-							otop2[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+							otop2argv1 = cpltClass(ufs,sargv);
 						}
 					} else {
-						otop2[1] = createObject(OBJ_STRING,uargv1);
-						otop2[2] = createObject(OBJ_STRING,uargv2);
+						otop2argv1 = uargv1;
+						otop2argv2 = uargv2;
 					}
 				} else {
 					if (find(elements,sargv,len)) {
-						otop2[2] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop2argv2 = cpltClass(ufs,sargv);
 					} else {
-						otop2[2] = createObject(OBJ_STRING,uargv2);
+						otop2argv2 = uargv2;
 					}
 					if (!sdscmp(uargv1,sargv)){
-						otop2[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop2argv1 = cpltClass(ufs,sargv);
 					} else {
-						otop2[1] = createObject(OBJ_STRING,uargv1);
+						otop2argv1 = uargv1;
 					}
 				}
 				sdsfreesplitres(elements,len);
@@ -380,30 +519,30 @@ void otUfs(sds ufs, robj **op1, robj **op2, dedge *e1, dedge *e2, int flag) {
 				if (!sdscntcmp(uargv1,uargv2)) { 
 				    //a and b are sets, a == b
 					int len;
-					sds *elements = sdssplitlen(uargv1,sdslen(uargv1),",",1,&len);
+					sds *elements = sdssplitlen(uargv1,strlen(uargv1),",",1,&len);
 					if (find(elements,sargv,len)) {
-						otop2[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
-						otop2[2] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop2argv1 = cpltClass(ufs,sargv);
+						otop2argv2 = cpltClass(ufs,sargv);
 					} else {
-						otop2[1] = createObject(OBJ_STRING,uargv1);
-						otop2[2] = createObject(OBJ_STRING,uargv2);
+						otop2argv1 = uargv1;
+						otop2argv2 = uargv2;
 					}
 					sdsfreesplitres(elements,len);
 				} else {
 					int len1,len2;
-					sds *elements1 = sdssplitlen(uargv1,sdslen(uargv1),",",1,&len1);
-					sds *elements2 = sdssplitlen(uargv2,sdslen(uargv2),",",1,&len2);
+					sds *elements1 = sdssplitlen(uargv1,strlen(uargv1),",",1,&len1);
+					sds *elements2 = sdssplitlen(uargv2,strlen(uargv2),",",1,&len2);
 					
 					//a,b are sets, a != b
 					if (find(elements1,sargv,len1)) {
-						otop2[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop2argv1 = cpltClass(ufs,sargv);
 					} else {
-						otop2[1] = createObject(OBJ_STRING,uargv1);
+						otop2argv1 = uargv1;
 					}
 					if (find(elements2,sargv,len2)){
-						otop2[2] = createObject(OBJ_STRING,cpltClass(ufs,sargv));
+						otop2argv2 = cpltClass(ufs,sargv);
 					} else {
-						otop2[2] = createObject(OBJ_STRING,uargv2);
+						otop2argv2 = uargv2;
 					}
 					sdsfreesplitres(elements1,len1);
 					sdsfreesplitres(elements2,len2);
@@ -411,153 +550,136 @@ void otUfs(sds ufs, robj **op1, robj **op2, dedge *e1, dedge *e2, int flag) {
 			}		
 		} else {
 			//no transformation
-			if (!strcmp(op1name,"unionot") && !strcmp(op2name,"unionot")) {
-				otop1 = zmalloc(sizeof(robj *)*3);
-				otop2 = zmalloc(sizeof(robj *)*3);
-				//otop1[0] = createStringObject("unionot",7);
-				otop1[0] = shared.unionot;
-				otop1[1] = createObject(OBJ_STRING,op1[1]->ptr);
-				otop1[2] = createObject(OBJ_STRING,op1[2]->ptr);
-				//otop2[0] = createStringObject("unionot",7);
-				otop2[0] = shared.unionot;
-				otop2[1] = createObject(OBJ_STRING,op2[1]->ptr);
-				otop2[2] = createObject(OBJ_STRING,op2[2]->ptr);			
+			if (op1type==OPTYPE_UNION && op2type==OPTYPE_UNION) {
+				otop1type = OPTYPE_UNION;
+				otop2type = OPTYPE_UNION;
+				otop1argv1 = op1->argv1;
+				otop1argv2 = op1->argv2;
+				otop2argv1 = op2->argv1;
+				otop2argv2 = op2->argv2;				
 			} 
-			if (!strcmp(op1name,"splitot") && !strcmp(op2name,"splitot")) {
-				otop1 = zmalloc(sizeof(robj *)*2);
-				otop2 = zmalloc(sizeof(robj *)*2);
-				//otop1[0] = createStringObject("splitot",7);
-				otop1[0] = shared.splitot;
-				otop1[1] = createObject(OBJ_STRING,op1[1]->ptr);
-				//otop2[0] = createStringObject("splitot",7);
-				otop2[0] = shared.splitot;
-				otop2[1] = createObject(OBJ_STRING,op2[1]->ptr);				
+			if (op1type==OPTYPE_SPLIT && op2type==OPTYPE_SPLIT) {
+				otop1type = OPTYPE_SPLIT;
+				otop2type = OPTYPE_SPLIT;
+				otop1argv1 = op1->argv1;
+				otop2argv1 = op2->argv1;
 			}
 		}
 	} 
 	if (flag == 1) {
 		//transform split operations
-		if ((!strcmp(op1name,"unionot") && !strcmp(op2name,"splitot")) 
-			  || (!strcmp(op2name,"unionot") && !strcmp(op1name,"splitot"))) {
-				 sds uargv1,uargv2,sargv;
+		if ((op1type == OPTYPE_UNION && op2type == OPTYPE_SPLIT) 
+			  || (op2type == OPTYPE_UNION && op1type == OPTYPE_SPLIT)) {
+				 char *uargv1,*uargv2,*sargv;
 				 int sargvlen;
-			if (!strcmp(op1name,"unionot") && !strcmp(op2name,"splitot")) {
-				uargv1 = op1[1]->ptr;
-				uargv2 = op1[2]->ptr;
-				sargv = op2[1]->ptr;
-				//sargvlen = sdslen(sargv);	
+			if (op1type == OPTYPE_UNION && op2type == OPTYPE_SPLIT) {
+				uargv1 = op1->argv1;
+				uargv2 = op1->argv2;
+				sargv = op2->argv1;
+                serverLog(LL_LOG,"union %s %s split %s  ",uargv1,uargv2,sargv);
 				sargvlen = strchr(sargv,',')==NULL?1:2;
+
+				otop1type = OPTYPE_UNION;
+				otop2type = OPTYPE_SPLIT;
+				otop1argv1 = uargv1;
+				otop1argv2 = uargv2;
 				
-				otop1 = zmalloc(sizeof(robj *)*3);
-				otop2 = zmalloc(sizeof(robj *)*2);
-				//otop1[0] = createStringObject("unionot",7);
-				otop1[0] = shared.unionot;
-				otop1[1] = createObject(OBJ_STRING,uargv1);
-				otop1[2] = createObject(OBJ_STRING,uargv2);
-				//otop2[0] = createStringObject("splitot",7);
-				otop2[0] = shared.splitot;
 				if (!sdscmp(uargv1,uargv2)) {
-					otop2[1] = createObject(OBJ_STRING,sargv);
+					otop2argv1 = sargv;
 				} else {
 					if (sargvlen == 1) {
 						if (!strcmp(sargv,"*")) {
-							otop2[1] = createObject(OBJ_STRING,sargv);
+							otop2argv1 = sargv;							
 						} else if (findClass(ufs,uargv1) == findClass(ufs,uargv2)) {
 					        //a and b in the same class, c is set to NULL
-					        if (!strcmp(uargv1,sargv) || !strcmp(uargv2,sargv)) {
-					            sds argv = sdsnew("*");
-							    otop2[1] = createObject(OBJ_STRING,argv);
+					        if (!strcmp(uargv1,sargv) || !strcmp(uargv2,sargv)) {					            
+							    otop2argv1 = shared.star;
 						    } else {
-							    otop2[1] = createObject(OBJ_STRING,sargv);
+							    otop2argv1 = sargv;
 						    }
 					    } else {
 					    	//a and b from different classes, consider c is equal to a/b
 					    	if (!sdscmp(uargv1,sargv) || !sdscmp(uargv2,sargv)) {
 					    	    //a/b == c, c = c.class-c
-					    		otop2[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));					    						   	   
+					    		otop2argv1 = cpltClass(ufs,sargv);
 					    	} else {
-								otop2[1] = createObject(OBJ_STRING,sargv);
+								otop2argv1 = sargv;
 					    	}
 					    }						
 					} else {
 						int len;
-						sds *elements = sdssplitlen(sargv,sdslen(sargv),",",1,&len);
+						sds *elements = sdssplitlen(sargv,strlen(sargv),",",1,&len);
 					   	if (findClass(ufs,uargv1) == findClass(ufs,uargv2)) {
 					   		if (find(elements,uargv1,len) && find(elements,uargv2,len)) {
-					   			otop2[1] = createObject(OBJ_STRING,sargv);
-					   		} else if (find(elements,uargv1,len) || find(elements,uargv2,len)) {
-				    		    sds argv = sdsnew("*");
-			    				otop2[1] = createObject(OBJ_STRING,argv);
+					   			otop2argv1 = sargv;
+					   		} else if (find(elements,uargv1,len) || find(elements,uargv2,len)) {				    		    
+			    				otop2argv1 = shared.star;
 		    				} else {
-	    						otop2[1] = createObject(OBJ_STRING,sargv);
+	    						otop2argv1 = sargv;
     						}
 						} else {
 							//a and b from different classes, consider a/b is in c(set) 
-							if (find(elements,uargv1,len) || find(elements,uargv2,len)) {
-					    		otop2[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));					    						   	   
+							if (find(elements,uargv1,len) || find(elements,uargv2,len)) {			    						   	   
+					    		otop2argv1 = cpltClass(ufs,sargv);
 					    	} else {
-								otop2[1] = createObject(OBJ_STRING,sargv);
+								//otop2[1] = createObject(OBJ_STRING,sargv);
+								otop2argv1 = sargv;
 					    	}
 						}
 					}
 				}
 			} 
-			if (!strcmp(op1name,"splitot") && !strcmp(op2name,"unionot") ) {
-				uargv1 = op2[1]->ptr;
-				uargv2 = op2[2]->ptr;
-				sargv = op1[1]->ptr;
-				//sargvlen = sdslen(sargv);
+			if (op1type == OPTYPE_SPLIT && op2type == OPTYPE_UNION) {
+				uargv1 = op2->argv1;
+				uargv2 = op2->argv2;
+				sargv = op1->argv1;
+                serverLog(LL_LOG,"split %s  union %s %s",sargv,uargv1,uargv2);
 				sargvlen = strchr(sargv,',')==NULL?1:2;
-					
-				otop1 = zmalloc(sizeof(robj *)*2);
-				otop2 = zmalloc(sizeof(robj *)*3);
-				//otop2[0] = createStringObject("unionot",7);
-				otop2[0] = shared.unionot;
-				otop2[1] = createObject(OBJ_STRING,uargv1);
-				otop2[2] = createObject(OBJ_STRING,uargv2);
-				//otop1[0] = createStringObject("splitot",7);
-				otop1[0] = shared.splitot;
+
+				otop1type = OPTYPE_SPLIT;
+				otop2type = OPTYPE_UNION;
+				otop2argv1 = uargv1;
+				otop2argv2 = uargv2;
+				
 				if (!sdscmp(uargv1,uargv2)) {
-					otop1[1] = createObject(OBJ_STRING,sargv);
+					otop1argv1 = sargv;
 				} else {
 					if (sargvlen == 1) {
 						if (!strcmp(sargv,"*")) {
-							otop1[1] = createObject(OBJ_STRING,sargv);
+							otop1argv1 = sargv;
 						} else if (findClass(ufs,uargv1) == findClass(ufs,uargv2)) {
 					        //a and b in the same class, c is set to NULL
 					        if (!sdscmp(uargv1,sargv) || !sdscmp(uargv2,sargv)) {
-					            sds argv = sdsnew("*");
-							    otop1[1] = createObject(OBJ_STRING,argv);
+							    otop1argv1 = shared.star;
 						    } else {
-							    otop1[1] = createObject(OBJ_STRING,sargv);
+							    otop1argv1 = sargv;
 						    }
 					    } else {
 					    	//a and b from different classes, consider c is equal to a/b
 					    	if (!sdscmp(uargv1,sargv) || !sdscmp(uargv2,sargv)) {
-					    	    //a/b == c, c = c.class-c
-					    		otop1[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));					    						   	   
+					    	    //a/b == c, c = c.class-c			    						   	   
+					    		otop1argv1 = cpltClass(ufs,sargv);
 					    	} else {
-								otop1[1] = createObject(OBJ_STRING,sargv);
+								otop1argv1 = sargv;
 					    	}
 					    }
 					} else {
 					    int len;
-                        sds *elements = sdssplitlen(sargv,sdslen(sargv),",",1,&len);
+                        sds *elements = sdssplitlen(sargv,strlen(sargv),",",1,&len);
                         if (findClass(ufs,uargv1) == findClass(ufs,uargv2)) {
 					   		if (find(elements,uargv1,len) && find(elements,uargv2,len)) {
-					   			otop1[1] = createObject(OBJ_STRING,sargv);
+					   			otop1argv1 = sargv;
 					   		} else if (find(elements,uargv1,len) || find(elements,uargv2,len)) {
-                                sds argv = sdsnew("*");
-                                otop1[1] = createObject(OBJ_STRING,argv);
+                                otop1argv1 = shared.star;
                             } else {
-                                otop1[1] = createObject(OBJ_STRING,sargv);
+                                otop1argv1 = sargv;
                             }
                         } else {
 							//a and b from different classes, consider a/b is in c(set) 
-							if (find(elements,uargv1,len) || find(elements,uargv2,len)) {
-					    		otop1[1] = createObject(OBJ_STRING,cpltClass(ufs,sargv));					    						   	   
+							if (find(elements,uargv1,len) || find(elements,uargv2,len)) {			    						   	   
+					    		otop1argv1 = cpltClass(ufs,sargv);
 					    	} else {
-								otop1[1] = createObject(OBJ_STRING,sargv);
+								otop1argv1 = sargv;
 					    	}
 						}				
 			        }
@@ -565,162 +687,31 @@ void otUfs(sds ufs, robj **op1, robj **op2, dedge *e1, dedge *e2, int flag) {
 		    } 
 	    } else {
 			//no transformation
-			if (!strcmp(op1name,"unionot") && !strcmp(op2name,"unionot")) {
-				otop1 = zmalloc(sizeof(robj *)*3);
-				otop2 = zmalloc(sizeof(robj *)*3);
-				//otop1[0] = createStringObject("unionot",7);
-				otop1[0] = shared.unionot;
-				otop1[1] = createObject(OBJ_STRING,op1[1]->ptr);
-				otop1[2] = createObject(OBJ_STRING,op1[2]->ptr);
-				//otop2[0] = createStringObject("unionot",7);
-				otop2[0] = shared.unionot;
-				otop2[1] = createObject(OBJ_STRING,op2[1]->ptr);
-				otop2[2] = createObject(OBJ_STRING,op2[2]->ptr);			
+			if (op1type==OPTYPE_UNION && op2type==OPTYPE_UNION) {
+				otop1type = OPTYPE_UNION;
+				otop2type = OPTYPE_UNION;
+				otop1argv1 = op1->argv1;
+				otop1argv2 = op1->argv2;
+				otop2argv1 = op2->argv1;
+				otop2argv2 = op2->argv2;
 			} 
-			if (!strcmp(op1name,"splitot") && !strcmp(op2name,"splitot")) {
-				otop1 = zmalloc(sizeof(robj *)*2);
-				otop2 = zmalloc(sizeof(robj *)*2);
-				//otop1[0] = createStringObject("splitot",7);
-				otop1[0] = shared.splitot;
-				otop1[1] = createObject(OBJ_STRING,op1[1]->ptr);
-				//otop2[0] = createStringObject("splitot",7);
-				otop2[0] = shared.splitot;
-				otop2[1] = createObject(OBJ_STRING,op2[1]->ptr);			
+			if (op1type==OPTYPE_SPLIT && op2type==OPTYPE_SPLIT) {
+				otop1type = OPTYPE_SPLIT;
+				otop2type = OPTYPE_SPLIT;
+				otop1argv1 = op1->argv1;
+				otop2argv1 = op2->argv1;
 			}
 		}
 	}
 	serverLog(LL_LOG,"ot function finished");
-	serverLogArgv(otop1);
-	serverLogArgv(otop2);
-	e1->argv = otop1;
-	e2->argv = otop2;
+	//serverLog(LL_LOG,"otop1: %d %s %s otop2: %d %s %s",otop1type,otop1argv1,otop1argv2,otop2type,otop2argv1,otop2argv2);
+	setOp(e1,otop1type,otop1argv1,otop1argv2);
+	setOp(e2,otop2type,otop2argv1,otop2argv2);
+	serverLogArgv(e1);
+	serverLogArgv(e2);
+	//serverLog(LL_LOG,"ot successed!!");
 }
 
-/***
-vertice *locateVertice(list* space, sds ctx) {
-	if (listLength(space)) {
-		//local processing (new generated operation)
-		if (!ctx) {
-			listNode *ln;
-			listIter li;
-			
-			listRewind(space,&li);			
-			while((ln = listNext(&li))) {
-				vertice *v = ln->value;
-				if (!v->ledge && !v->redge) {
-					//serverLog("locateVertice: oids: %s ufs: %s ",v->oids,v->content);
-					return v;
-				}	
-			}
-		}
-		else {
-			//remote processing (received operation)
-			listNode *ln;
-			listIter li;
-	
-			listRewind(space,&li);
-			while((ln = listNext(&li))) {
-				vertice *v = ln->value;
-				//serverLog(LL_LOG,"locateVerticeFunction: v: %s %s, ctx: %s",v->oids, v->content,ctx);
-				//only require v->oids and ctx has the same operations, not need the same order
-				if (!sdscntcmp(v->oids,ctx)) return v; 
-			}			
-		}
-	} else {
-		return NULL;
-	}
-}
-***/
-
-/***used for local processing
-vertice *locateLVertice(list* space, sds ctx){
-    listNode *ln;
-	listIter li;
-	
-	listRewind(space,&li);			
-	while((ln = listNext(&li))) {
-		vertice *v = ln->value;
-		if (!v->ledge && !v->redge) {
-			//serverLog("locateVertice: oids: %s ufs: %s ",v->oids,v->content);
-			return v;
-		}	
-	}
-}
-
-vertice *locateLVertice(vertice* q, sds ctx){
-    vertice* t = NULL;
-    if (q) {
-        if (!q->ledge && !q->redge) {
-            return q;
-        } 
-        if (q->ledge) {
-            t = locateLVertice(q->ledge->adjv,oids);
-        } 
-        if (t) return t;
-        if (q->redge) t = locateLVertice(q->redge->adjv,oids);
-        return t;
-    } else {
-        return NULL;
-    }
-}
-***/
-
-/*oids is used to construct the oids of vertice*/
-/****
-vertice *locateLVertice(vertice* q, sds oids){
-    vertice* t = NULL;
-    sds ltemp = NULL;
-    sds rtemp = NULL;
-    if (oids) {
-        ltemp = sdsempty();
-        rtemp = sdsempty();
-        ltemp = sdscat(ltemp,oids);
-        rtemp = sdscat(rtemp,oids);
-    }
-    //serverLog(LL_LOG,"locatevertice: oids: %s ",oids);
-    if (q) {
-        if (!q->ledge && !q->redge) {
-            return q;
-        } 
-        if (q->ledge) {
-            if (ltemp) {
-                ltemp = sdscat(ltemp,",");
-                ltemp = sdscat(ltemp,q->ledge->oid);
-                //serverLog(LL_LOG,"locatevertice: ledge loids: %s ",ltemp);
-            }
-            t = locateLVertice(q->ledge->adjv,ltemp);
-        } 
-        if (t) {
-            sdsfree(oids);
-            oids = sdsempty();
-            oids = sdscat(oids,ltemp);
-            if (!ltemp) sdsfree(ltemp);
-            if (!rtemp) sdsfree(rtemp);
-            serverLog(LL_LOG,"locatevertice: ledge return: %s ",oids);
-            return t;
-        }    
-        if (q->redge) {
-            if (rtemp) {
-                rtemp = sdscat(rtemp,",");        
-                rtemp = sdscat(rtemp,q->redge->oid);
-                //serverLog(LL_LOG,"locatevertice: redge roids: %s ",rtemp);
-            }
-            t = locateLVertice(q->redge->adjv,rtemp);
-        }
-        sdsfree(oids);
-        oids = sdsempty();
-        oids = sdscat(oids,rtemp);
-        if (!ltemp) sdsfree(ltemp);
-        if (!rtemp) sdsfree(rtemp);
-        serverLog(LL_LOG,"locatevertice: redge return: %s ",oids);
-        return t;
-    } else {
-        return NULL;
-    }
-}
-***/
-
-//***
 vertice *locateLVertice(vertice* v){
     vertice *q = v;
     while (q) {
@@ -733,12 +724,11 @@ vertice *locateLVertice(vertice* v){
             q = q->redge->adjv;
         }
     }
-    if (!q) serverLog(LL_LOG,"locate to the last vertice fail"); 
+    serverLog(LL_LOG,"locate to the last vertice fail"); 
+    return NULL;
 }
-/**/
 
 sds calculateOids(vertice* v, sds oids){
-    //serverLog(LL_LOG,"locatevertice: oids: %s ",oids);
     vertice *q = v;
     while (q) {
         if (!q->ledge && !q->redge) {
@@ -755,68 +745,42 @@ sds calculateOids(vertice* v, sds oids){
             q = q->redge->adjv;
         }
     }
+    return NULL;
 }
-
 
 vertice *locateRVertice(vertice* q, sds ctx, sds t) {
-    sds temp = sdsnew(t); 
-    sds ltemp = sdsnew(temp);
-    sds rtemp = sdsnew(temp);
-    vertice* lresult = NULL;
-    vertice* rresult = NULL;
-	if (q) {
-	    if ((!strcmp(ctx,"init") && !strcmp(t,"init")) || !sdscntcmp(temp,ctx)) {
-            sdsfree(temp);
-            sdsfree(ltemp);
-            sdsfree(rtemp);
+	while (q) {
+	    if ((!strcmp(ctx,"init") && !strcmp(t,"init")) || !sdscntcmp(t,ctx)) {
+            sdsfree(t);
             serverLog(LL_LOG,"locateRVertice: return vertex q: %s %s",t,q->content);
 		    return q;
-		}			
-		if (q->ledge) {
-		    ltemp = sdscat(ltemp,",");
-		    ltemp = sdscat(ltemp,q->ledge->oid);
-            lresult = locateRVertice(q->ledge->adjv,ctx,ltemp);
-        }
-        if (lresult) {
-            sdsfree(temp);
-            sdsfree(ltemp);
-            sdsfree(rtemp);
-            return lresult;
-        } 
-		if (q->redge) {
-		    rtemp = sdscat(rtemp,",");
-		    rtemp = sdscat(rtemp,q->redge->oid);
-            rresult = locateRVertice(q->redge->adjv,ctx,rtemp);
-        }
-        
-        sdsfree(temp);
-        sdsfree(ltemp);
-        sdsfree(rtemp);
-        if (!rresult){
-            serverLog(LL_LOG,"2D state space does not have the vertice");
+		} else if (q->ledge && strstr(ctx,q->ledge->oid)) {
+		    t = sdscat(t,",");
+		    t = sdscat(t,q->ledge->oid);
+		    q = q->ledge->adjv;
+		} else if (q->redge && strstr(ctx,q->redge->oid)) {
+		    t = sdscat(t,",");
+		    t = sdscat(t,q->redge->oid);
+		    q = q->redge->adjv;
+		} else {
+		    serverLog(LL_LOG,"2D state space does not have the vertice");
+		    return NULL;
 		}
-		return rresult;
-	} else {
-	    return NULL;
-	}
+	} 
+	serverLog(LL_LOG,"2D state space does not have the vertice");
+	return NULL;
 }
 
-//each vertice does not have oids
 vertice *locateVertice(list* space, sds ctx) {
 	if (listLength(space)) {
-		//local processing (new generated operation)
-		//serverLog(LL_LOG,"locatevertice local processing");
 		if (!ctx) {
             return locateLVertice(space->head->value);
 		}
 		else {
-			//remote processing (received operation)
-			//serverLog(LL_LOG,"locatevertice remote processing");
 			sds temp = sdsnew("init");
 			vertice* result = locateRVertice(space->head->value,ctx,temp);
 			sdsfree(temp);
 			if (!result) serverLog(LL_LOG,"2D state space does not exist the vertex");
-			//if (result) serverLog(LL_LOG,"locateRVertice: return result: %s %s",result->oids,result->content);
 			return result;    
 	    }
 	} else {
