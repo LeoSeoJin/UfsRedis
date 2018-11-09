@@ -2273,13 +2273,14 @@ void propagateToMaster(struct redisCommand *cmd, int dbid, robj **argv, int argc
         //replicationFeedSlaves(server.slaves,dbid,argv,argc
 		serverLog(LL_LOG,"propagateToMaster: replicationFeedMaster");
 		replicationFeedMaster(dbid,argv,argc);
-		
+		/**
 		if (argc == 6) 
 		    decrRefCount(argv[5]);
 		else
 		    decrRefCount(argv[2]);
         decrRefCount(argv[3]);
         decrRefCount(argv[4]);
+        **/
 	}
 }
 
@@ -2291,7 +2292,8 @@ void propagateExSlave(struct redisCommand *cmd, int dbid, uint64_t id, robj **ar
         feedAppendOnlyFile(cmd,dbid,argv,argc);
     if (flags & PROPAGATE_REPL) 
         replicationFeedExSlave(server.slaves,dbid,id,argv,argc);
-        
+    
+    /**
     if (argc == 6) {//124  13
 	    decrRefCount(argv[2]);
 	    decrRefCount(argv[4]);
@@ -2299,6 +2301,7 @@ void propagateExSlave(struct redisCommand *cmd, int dbid, uint64_t id, robj **ar
 	    decrRefCount(argv[3]);
 	}
     decrRefCount(argv[1]);
+    **/
 }
 
 /* Used inside commands to schedule the propagation of additional commands

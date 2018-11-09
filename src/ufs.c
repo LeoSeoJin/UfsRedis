@@ -291,9 +291,11 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
     serverLog(LL_LOG,"entering updateVerticeUfsFromState");
     int len, i;
     sds v_ufs;
+    sds temp = NULL;
+    char *uf,*r;
     
     //char uf[strlen(u)];
-    char *uf = (char*)zmalloc(strlen(u)+1);
+    uf = (char*)zmalloc(strlen(u)+1);
 	strcpy(uf,u);
 
     len = 1;
@@ -302,11 +304,11 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
 			
 	sds elements[len];
 	memset(elements,0,len);
-		
+
 	i = 0;
-	char *r = strtok(uf,"/");
+	r = strtok(uf,"/");
 	
-	while (r != NULL) {
+	while (i<len && r != NULL) {
     	//serverLog(LL_LOG,"r: %s",r);
 		elements[i] = sdsempty();
 		elements[i] = sdscat(elements[i],r);
@@ -314,13 +316,13 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
 		i++;
 	}
     zfree(uf);
+    uf = NULL;
     
-    //for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
+    for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
    
     if (type == OPTYPE_UNION) {
 	   	serverLog(LL_LOG,"updaeVerticeState from  u %s unionot %s %s",u,argv1,argv2);
 		if (!strcmp(argv1,"*") || !strcmp(argv2,"*")) {
-			//v_ufs = sdsnew(u);
 			v_ufs = sdsempty();
 		} else {
             //union operation
@@ -338,15 +340,67 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
             	v_ufs = sdsempty();
                 int low = (argv1class < argv2class)? argv1class: argv2class;
                 int high = (argv1class > argv2class)? argv1class: argv2class;
-                for (i = 0; i < len; i++) {
-                    if (i != low || i == high) continue;
-                    elements[i] = sdscat(elements[i],",");    //flag todo: strcat
-                    elements[i] = sdscat(elements[i],elements[high]);
-                    break;
-                }
+                /*           
+                uf = (char*)zmalloc(strlen(u)+1);
+            	strcpy(uf,u);
+
+                len = 1;
+                for (i = 0; i < (int)strlen(uf); i++)
+            		if (uf[i] == '/') len++;
+			
+            	sds eles[len];
+            	memset(eles,0,len);
+
+            	i = 0;
+	            r = strtok(uf,"/");
+	
+            	while (i<len && r != NULL) {
+   	            	eles[i] = sdsempty();
+	            	eles[i] = sdscat(eles[i],r);
+	            	r = strtok(NULL,"/");
+	            	i++;
+	            }
+                zfree(uf);                
+                uf = NULL;
+                
+                for (int j = 0; j < len; j++) serverLog(LL_LOG,"eles[%d] %s",j,eles[j]);
+                
+                temp = sdsempty();
+                temp = sdscat(temp,eles[low]);
+                temp = sdscat(temp,",");
+                temp = sdscat(temp,eles[high]);
+                
                 for (i = 0; i < len; i++) {
                 	if (i == high) continue;
-    				v_ufs = sdscat(v_ufs,elements[i]);
+    				if (i == low) {
+                        serverLog(LL_LOG,"temp: %s",temp);
+        				v_ufs = sdscat(v_ufs,temp); 
+        	        } else {
+        	            serverLog(LL_LOG,"eles[%d] %s",i,eles[i]);
+        	            v_ufs = sdscat(v_ufs,eles[i]);
+        	        }
+                    if (high != len-1) {
+                        if (i != len-1) v_ufs = sdscat(v_ufs,"/");
+                    } else {
+                        if (i != len-2) v_ufs = sdscat(v_ufs,"/");
+                    }
+                }
+                for (i = 0; i < len; i++) sdsfree(eles[i]);                
+                */  
+                temp = sdsempty();
+                temp = sdscat(temp,elements[low]);
+                temp = sdscat(temp,",");
+                temp = sdscat(temp,elements[high]);  
+                for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);           
+                for (i = 0; i < len; i++) {
+                	if (i == high) continue;
+    				if (i == low) {
+                        serverLog(LL_LOG,"temp: %s",temp);
+        				v_ufs = sdscat(v_ufs,temp); 
+        	        } else {
+        	            serverLog(LL_LOG,"elements[%d] %s",i,elements[i]);
+        	            v_ufs = sdscat(v_ufs,elements[i]);
+        	        }
                     if (high != len-1) {
                         if (i != len-1) v_ufs = sdscat(v_ufs,"/");
                     } else {
@@ -354,14 +408,12 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
                     }
                 }
            } else {
-                //v_ufs = sdsnew(u);
                 v_ufs = sdsempty();
            }
         }       
    } else {
        serverLog(LL_LOG,"updaeVerticeUfsFromState: %s splitot %s",u,argv1);
        	if (!strcmp(argv1,"*")) {
-       	    //v_ufs = sdsnew(u);
        	    v_ufs = sdsempty();
        	} else { 
             int argvclass = -1;
@@ -369,29 +421,71 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
             for (i = 0; i < len; i++) {
                if (findSds(elements[i],argv1)){
                   if (sdscntcmp(elements[i],argv1)) {
-                      argvclass = i;
-                      elements[i] = sdsDel(elements[i],argv1);  
-                  }
-                  //serverLog(LL_LOG,"updateVerticeFromState: splitot sdsDel elements[i]: %s ",elements[i]);      
+                      argvclass = i; 
+                  }     
                   break;
                } 
             }
             serverLog(LL_LOG,"argvclass: %d",argvclass);
+            
             if (argvclass != -1) {
+                for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
+                temp = sdsempty();
+                temp = sdscat(temp,elements[argvclass]);
+                temp = sdsDel(temp,argv1);            
+                
             	v_ufs = sdsempty();
                 for (i = 0; i < len; i++) {
                     if (i != argvclass) {
                         v_ufs = sdscat(v_ufs,elements[i]);
                         if (i != len-1) v_ufs = sdscat(v_ufs,"/");
                     } else {
-                        v_ufs = sdscat(v_ufs,elements[i]);
+                        v_ufs = sdscat(v_ufs,temp);
+                        v_ufs = sdscat(v_ufs,"/");
+                        v_ufs = sdscat(v_ufs,argv1);
+                        if (argvclass != len-1) v_ufs = sdscat(v_ufs,"/");
+                    }  
+                }            
+                /**                        
+                uf = (char*)zmalloc(strlen(u)+1);
+                strcpy(uf,u);
+
+                sds eles[len];
+                memset(eles,0,len);
+    
+                i = 0;
+    	        r = strtok(uf,"/");
+	
+                while (i<len && r != NULL) {
+       	           	eles[i] = sdsempty();
+    	           	eles[i] = sdscat(eles[i],r);
+    	           	r = strtok(NULL,"/");
+    	           	i++;
+    	        }
+                zfree(uf);
+                uf = NULL;
+                
+                for (int j = 0; j < len; j++) serverLog(LL_LOG,"eles[%d] %s",j,eles[j]);
+                                        
+                temp = sdsempty();
+                temp = sdscat(temp,eles[argvclass]);
+                temp = sdsDel(temp,argv1);            
+                
+            	v_ufs = sdsempty();
+                for (i = 0; i < len; i++) {
+                    if (i != argvclass) {
+                        v_ufs = sdscat(v_ufs,eles[i]);
+                        if (i != len-1) v_ufs = sdscat(v_ufs,"/");
+                    } else {
+                        v_ufs = sdscat(v_ufs,temp);
                         v_ufs = sdscat(v_ufs,"/");
                         v_ufs = sdscat(v_ufs,argv1);
                         if (argvclass != len-1) v_ufs = sdscat(v_ufs,"/");
                     }  
                 }
+                for (i = 0; i < len; i++) sdsfree(eles[i]);
+                **/
             } else {
-               //v_ufs = sdsnew(u);
                v_ufs = sdsempty();
             }
         }
@@ -407,8 +501,8 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
    serverLog(LL_LOG,"updateVerticeFromState(end): v_ufs %s len: %lu v->content %s len %lu",v_ufs,sdslen(v_ufs),v->content,strlen(v->content));
    
    for (i = 0; i < len; i++) sdsfree(elements[i]);
-   //zfree(elements);
    sdsfree(v_ufs);
+   sdsfree(temp);
 }
 
 void updateVerticeUfs(cudGraph *ufs, vertice *v) { 
@@ -959,7 +1053,10 @@ void controlAlg(client *c) {
 		vertice *ur;
 		vertice *p = v;
 		if (u->redge) serverLog(LL_LOG,"ot process");
-		while (u->redge != NULL) {    		
+		while (u->redge != NULL) {  
+    	    oids = sdscat(oids,",");
+    		oids = sdscat(oids,u->redge->oid);  		
+		
 			vertice *pr = createVertice();	
 			listAddNodeTail(s->vertices,pr);
 			p->redge = createOpEdge(-1,NULL,NULL,u->redge->oid,pr);
@@ -972,11 +1069,12 @@ void controlAlg(client *c) {
 			updateVerticeUfsFromState(ur->content,ur->ledge->optype,ur->ledge->argv1,ur->ledge->argv2,pr); 
 			serverLog(LL_LOG,"updaeVerticeState finish (ot process) pr->content: %s",pr->content);			
 			
+			/**
 			if (ur->redge) {		
     			oids = sdscat(oids,",");
     			oids = sdscat(oids,u->redge->oid);
     		}
-    		
+    		**/
 			u = ur;
 			p = pr;
 	    }	
@@ -1051,15 +1149,20 @@ void splitotCommand(client *c) {
 }
 
 
-/* example: uadd 1 1,2/3/4/5 */
+/* example: uinit key 1 1,2/3/4/5 */
 void uinitCommand(client *c) {
     int eqcs_num,num;
     sds *eqcs, *elements;
     int i,k,m;
     int vertexnum = 0;
     int j = 0;
-
-	char* key = (char*)c->argv[1]->ptr;
+    
+    /**
+	char* key = (char*)zmalloc(sdslen(c->argv[1]->ptr)+1);
+	memcpy(key,c->argv[1]->ptr,sdslen(c->argv[1]->ptr));
+	key[sdslen(c->argv[1]->ptr)]='\0';
+	**/
+	sds key = c->argv[1]->ptr;
 	
     eqcs = sdssplitlen(c->argv[2]->ptr,sdslen(c->argv[2]->ptr),"/",1,&eqcs_num);
     for (i = 0; i < eqcs_num; i++) {        
@@ -1068,15 +1171,18 @@ void uinitCommand(client *c) {
         sdsfreesplitres(elements,num);
     }
 	
-	cudGraph *ufs = zmalloc(sizeof(cudGraph)+sizeof(vertex)*(vertexnum));
+	cudGraph *ufs = zmalloc(sizeof(cudGraph)+sizeof(vertex)*(vertexnum)+sizeof(char*));
     ufs->vertexnum = vertexnum;
     ufs->edgenum = 0;
-    ufs->key = sdsnew(key);
+    ufs->key = sdsempty();
+    ufs->key = sdscat(ufs->key,c->argv[1]->ptr);
         
     for (i = 0; i < eqcs_num; i++) {        
         elements = sdssplitlen(eqcs[i],sdslen(eqcs[i]),",",1,&num);
         for (k = 0; k < num; k++) {
-            ufs->dlist[j].data = sdsnew(elements[k]);
+            //ufs->dlist[j].data = sdsnew(elements[k]);
+            ufs->dlist[j].data = sdsempty();
+            ufs->dlist[j].data = sdscat(ufs->dlist[j].data,elements[k]);
             ufs->dlist[j].firstedge = NULL;
             j++;
         }
@@ -1282,25 +1388,71 @@ void test3 (sds t) {
 }
 
 void testCommand(client *c) {
-    //sds	t = sdsnew("init");
+    char *s = "12";
+    sds list = sdsnew("122,34,12");
+    
+    int i,len,num;
+    char *uf,*r;
+    
+    uf = (char*)zmalloc(strlen(s)+1);
+	strcpy(uf,s);
+    len = 1;
+    for (i = 0; i < (int)strlen(uf); i++)
+		if (uf[i] == ',') len++;
+			
+	sds elements[len];
+	memset(elements,0,len);
+		
+	i = 0;
+	r = strtok(uf,",");
 	
-	char *a = (char*)zmalloc(sdslen(c->argv[1]->ptr));
-    memcpy(a,c->argv[1]->ptr,sdslen(c->argv[1]->ptr)+1);
-    a[sdslen(c->argv[1]->ptr)] = '\0';
+	while (r != NULL) {
+    	//serverLog(LL_LOG,"r: %s",r);
+		elements[i] = sdsempty();
+		elements[i] = sdscat(elements[i],r);
+		r = strtok(NULL,",");
+		i++;
+	}
+    //zfree(uf);
+    //zfree(r);
+    //uf = NULL;
+    //r = NULL;
     
-    sds q = sdsnew(a);
-    int len;
-	sds *list = sdssplitlen(q,sdslen(q),",",1,&len);
-    serverLog(LL_LOG,"q: %s %s",list[0],list[1]);
-    sdsfreesplitres(list,len);
+    if (!r) serverLog(LL_LOG,"r is NULL");
+    else serverLog(LL_LOG,"r: %s",r);
+    if (!uf) serverLog(LL_LOG,"uf is NULL");
+    else serverLog(LL_LOG,"uf: %s",uf);
+    
+    char *ulist = (char*)zmalloc(sdslen(list)+1);
+	strcpy(ulist,list); 
+	
+	serverLog(LL_LOG,"ulist: %s",ulist);
+	num = 1;
+    for (i = 0; i < (int)strlen(ulist); i++)
+		if (ulist[i] == ',') num++;
+			
+	sds classelements[num];
+	memset(classelements,0,num);
+		
+	i = 0;
+	char *rlist = strtok(ulist,",");	
+	while (rlist != NULL) {
+    	//serverLog(LL_LOG,"r: %s",r);
+		classelements[i] = sdsempty();
+		classelements[i] = sdscat(classelements[i],rlist);
+		rlist = strtok(NULL,",");
+		i++;
+	}
+    zfree(ulist);   
+    zfree(rlist);
+    
+    serverLog(LL_LOG,"len: %d num: %d",len,num);
+    for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
+    for (int j = 0; j < num; j++) serverLog(LL_LOG,"classelements[%d] %s",j,classelements[j]);
+ 
+    for (int j = 0; j < len; j++) sdsfree(elements[j]);
+    for (int j = 0; j < num; j++) sdsfree(classelements[j]);
        
-    sds p = a;
-	list = sdssplitlen(p,sdslen(p),",",1,&len);      
-    serverLog(LL_LOG,"p: %s %s",list[0],list[1]);
-    sdsfreesplitres(list,len);
-    
-    //serverLog(LL_LOG,"test argv: %s a %s %d, t==a: %d %d,p==t: %d",c->argv[1]->ptr,a,strlen(a),strcmp(t,a),sdscmp(t,a),sdscmp(p,t));
-    
     addReply(c,shared.ok);
 }
 

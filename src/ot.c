@@ -46,35 +46,163 @@ sds sdsDel(sds list, char *t) {
 
 /*v: sds/char* */
 int find(sds *list, char *v, int len) {
+    int result = 0;
 	for (int i = 0; i < len; i++) {
-	    //serverLog(LL_LOG,"find %s from %s",v,list[i]);
-		if (!sdscmp(list[i], v) || !strcmp(list[i],v)) return 1;	
+	    serverLog(LL_LOG,"find %s from %s",v,list[i]);
+		if (!strcmp(v,list[i])) {
+		    result = 1;
+		    break;
+		}	
 	}
-	return 0;
+	serverLog(LL_LOG,"find result: %d",result);
+	return result;
 }
 
 /*Used for cpltClass function in ot.c, (sds char*)*/
-int findSds(sds list, char *f) {
-    //serverLog(LL_LOG,"findSds %s from %s",f,list);
-    sds s = sdsempty();
-    s = sdscat(s,f);
+int findSds(sds list, char *s) {
+    serverLog(LL_LOG,"findSds %s from %s",s,list);
     
-    int len, result;
-    sds *elements = sdssplitlen(s,sdslen(s),",",1,&len);
+    int result = 0;
+    int i,len;
+    char *uf,*r;
     
-    //int num;
-    //sds *classelements = sdssplitlen(list,sdslen(list),",",1,&num);
+    uf = (char*)zmalloc(strlen(s)+1);
+	strcpy(uf,s);
+
+    len = 1;
+    for (i = 0; i < (int)strlen(uf); i++)
+		if (uf[i] == ',') len++;
+	
+	//char* elements[len];
+	//memset(elements,0,len);	
+	//for (i = 0; i < len; i++) elements[i] = (char*)zmalloc(sizeof(char*));;
+	
+	if (len != 1) {
+	    i = 0;
+	    r = strtok(uf,",");
+	    while (i<len && r != NULL) {
+            //strcpy((char*)elements[i],(char*)r);
+	        sds t = sdsnew(r);
+    	    t = sdscat(t,",");
+    	    if (strstr(list,t)) {
+    	        result = 1;
+    	    } else {
+        	    sdsclear(t);
+        	    t = sdscat(t,",");
+        	    t = sdscat(t,r);
+        	    if (strstr(list,t)) {
+        	        result = 1;
+        	    } else {
+            	    t = sdscat(t,",");
+            	    if (strstr(list,t)) result = 1;
+            	}
+            }
+            sdsfree(t);            
+   		    r = strtok(NULL,",");
+		    i++;
+		}
+	} else {
+	    sds t = sdsnew(s);
+	    t = sdscat(t,",");
+	    if (strstr(list,t)) {
+	        result = 1;
+	    } else {
+    	    sdsclear(t);
+    	    t = sdscat(t,",");
+    	    t = sdscat(t,s);
+    	    if (strstr(list,t)) {
+    	        result = 1;
+    	    } else {
+        	    t = sdscat(t,",");
+        	    if (strstr(list,t)) result = 1;
+        	}
+        }
+        sdsfree(t);
+	}
+	
+    /***
+    int result = 0;
+    int i,len,num;
+    char *uf,*r,*ulist,*rlist;
     
-    //serverLog(LL_LOG,"entering find");
-    //if (find(classelements,elements[0],num)) {
-    if (strstr(list,elements[0])) {
-        result = 1;
-    } else {
-        result = 0;
+    uf = (char*)zmalloc(strlen(s)+1);
+	strcpy(uf,s);
+
+    len = 1;
+    for (i = 0; i < (int)strlen(uf); i++)
+		if (uf[i] == ',') len++;
+	
+	serverLog(LL_LOG,"uf: %s",uf);		
+	sds elements[len];
+	memset(elements,0,len);
+	for (i = 0; i < len; i++) elements[i] = sdsempty();
+	
+	if (len != 1) {
+	    i = 0;
+	    r = strtok(uf,",");
+	    while (i<len && r != NULL) {
+		    if (!elements[i]) elements[i] = sdsempty();
+		    elements[i] = sdscat(elements[i],r);
+		    serverLog(LL_LOG,"r: %s elements[%d]: %s",r,i,elements[i]);
+		    r = strtok(NULL,",");
+		    i++;
+		}
+	}
+	
+    zfree(uf);
+    uf = NULL;
+    
+    ulist = (char*)zmalloc(sdslen(list)+1);
+	strcpy(ulist,list); 
+	
+	num = 1;
+    for (i = 0; i < (int)strlen(ulist); i++)
+		if (ulist[i] == ',') num++;
+	serverLog(LL_LOG,"ulist: %s",ulist);			
+	sds classelements[num];
+	memset(classelements,0,num);
+	for (i = 0; i < num; i++) classelements[i] = sdsempty();
+				
+	if (num != 1) {
+	    i = 0;
+	    rlist = strtok(ulist,",");
+	    while (i<num && rlist!= NULL) {
+		    //classelements[i] = sdsempty();
+		    if (!classelements[i]) classelements[i] = sdsempty();
+		    classelements[i] = sdscat(classelements[i],rlist);
+		    serverLog(LL_LOG,"rlist: %s classelements[%d]: %s",rlist,i,classelements[i]);
+		    rlist = strtok(NULL,",");
+		    i++;
+		}
+	}
+    zfree(ulist);   
+    ulist = NULL;
+    
+    serverLog(LL_LOG,"len: %d num: %d",len,num);
+    if (len != 1) {
+        for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
+    } 
+    if (num != 1) {
+        for (int j = 0; j < num; j++) serverLog(LL_LOG,"classelements[%d] %s",j,classelements[j]);
     }
     
-    //sdsfreesplitres(classelements,num);
-    sdsfreesplitres(elements,len);
+    if (len == 1 && num == 1) {
+        serverLog(LL_LOG,"case1: find %s from %s",s,list);    
+        if (!strcmp(s,list)) result = 1;
+    } else if (len == 1 && num > 1) {
+        serverLog(LL_LOG,"case2: find %s from %s",s,list);
+        if (find(classelements,s,num)) result = 1;
+    } else if (len > 1 && num > 1) {
+        serverLog(LL_LOG,"case3: find %s from %s",elements[0],list);
+        if (find(classelements,elements[0],num)) result = 1;
+    } else {
+        result = 0; 
+    }
+    
+    for (int j = 0; j < len; j++) sdsfree(elements[j]);
+    for (int j = 0; j < num; j++) sdsfree(classelements[j]);
+    **/
+    serverLog(LL_LOG,"findsds result: %d",result);
     return result;
 }
 
@@ -88,30 +216,31 @@ int sdscntcmp(char *t1, char *t2) {
     sds s2 = sdsempty();
     s1 = sdscat(s1,t1);
     s2 = sdscat(s2,t2);
+    serverLog(LL_LOG,"sdscntcmp: %s and %s",s1,s2);
     
-	int len1,len2,i;                                   
+	int len1,len2,i,result;
+	                                  
 	sds *oids1 = sdssplitlen(s1,sdslen(s1),",",1,&len1);
 	sds *oids2 = sdssplitlen(s2,sdslen(s2),",",1,&len2);
 	if (len1 != len2) {
-		return 1;
+		result = 1;
 	} else {
 		for (i = 0; i < len1; i++) {
 			if (!find(oids2, oids1[i], len1)) break; 
 		}
 		if (i == len1) {
-    	    sdsfreesplitres(oids1,len1);
-	    	sdsfreesplitres(oids2,len2);
-	    	sdsfree(s1);
-	    	sdsfree(s2);
-		    return 0;
+		    result = 0;
 		} else {
-    	    sdsfreesplitres(oids1,len1);
-	    	sdsfreesplitres(oids2,len2);		
-	    	sdsfree(s1);
-	    	sdsfree(s2);
-		    return 1;
+		    result = 1;
 		}
 	}
+	
+	sdsfreesplitres(oids1,len1);
+	sdsfreesplitres(oids2,len2);
+	sdsfree(s1);
+  	sdsfree(s2);
+  	
+  	return result;
 }
 
 vertice *createVertice(){
@@ -127,45 +256,24 @@ vertice *createVertice(){
 verlist *createVerlist(int id, sds key) {
 	verlist *list = zmalloc(sizeof(verlist));
 	list->id = id;
-	list->key = sdsnew(key);
+	//list->key = sdsnew(key);
+	list->key = sdsempty();
+	list->key = sdscat(list->key,key);
 	list->vertices = listCreate();
 	return list;
 }
 
 cverlist *createCVerlist(sds key){
 	cverlist *list = zmalloc(sizeof(cverlist));
-	list->key = sdsnew(key);
+	//list->key = sdsnew(key);
+	list->key = sdsempty();
+	list->key = sdscat(list->key,key);
 	list->vertices = listCreate();
 	return list;
 }
 
-
-dedge *createOpEdge2(int t,vertice *v) {
-    //serverLog(LL_LOG,"createOpedge1: %d  %s",t,o);
-    dedge *e = zmalloc(sizeof(dedge));
-    e->optype = t;
-    //e->oid = sdsempty();
-    //e->oid = sdscat(e->oid,o);
-    //e->oid = sdsnew(o);
-    e->adjv = v;
-    //serverLog(LL_LOG,"createOpedge1 e: %d  %s",e->optype,e->oid);
-    return e;
-}
-
-dedge *createOpEdge1(int t,char *o,vertice *v) {
-    serverLog(LL_LOG,"createOpedge1: %d  %s",t,o);
-    dedge *e = zmalloc(sizeof(dedge));
-    e->optype = t;
-    e->oid = sdsempty();
-    e->oid = sdscat(e->oid,o);
-    //e->oid = sdsnew(o);
-    e->adjv = v;
-    serverLog(LL_LOG,"createOpedge1 e: %d  %s",e->optype,e->oid);
-    return e;
-}
-
 dedge *createOpEdge(int type, char *t1, char *t2, char *t3, vertice *v) {
-    //serverLog(LL_LOG,"createOpedge: %d %s %s %s",type,t1,t2,t3);
+    serverLog(LL_LOG,"createOpedge: %d %s %s %s",type,t1,t2,t3);
 	dedge *e = zmalloc(sizeof(dedge)); 
 	e->optype = type;
 	e->argv1 = t1;
@@ -173,15 +281,7 @@ dedge *createOpEdge(int type, char *t1, char *t2, char *t3, vertice *v) {
     e->oid = t3;
 	e->adjv = v;
 	serverLog(LL_LOG,"createOpedge e: %d %s %s %s",e->optype,e->argv1,e->argv2,e->oid);
-	//serverLog(LL_LOG,"createOpedge2: %d %s %s %s",type,t1,t2,t3);
 	return e;
-}
-
-dedge *setOpedgeOp(dedge *e, sds t1, sds t2) {
-    //e->optype = t;
-    e->argv1 = sdsnew(t1);
-    e->argv2 = sdsnew(t2);
-    return e;
 }
 
 void setOp(dedge *e, int t, sds t1, sds t2) {
