@@ -63,21 +63,25 @@ int findSds(sds list, char *s) {
     serverLog(LL_LOG,"findSds %s from %s",s,list);
     
     int result = 0;
-    int i,len;
+    int i,len,num;
     char *uf,*r;
     
-    uf = (char*)zmalloc(strlen(s)+1);
-	strcpy(uf,s);
+    len = strchr(s,',')?1:0;
+    num = strchr(list,',')?1:0;
 
-    len = 1;
-    for (i = 0; i < (int)strlen(uf); i++)
-		if (uf[i] == ',') len++;
+    if (len == 1) {
+        uf = (char*)zmalloc(strlen(s)+1);
+	    strcpy(uf,s);
+        for (i = 0; i < (int)strlen(uf); i++)
+		    if (uf[i] == ',') len++;
+	}
 	
 	//char* elements[len];
 	//memset(elements,0,len);	
 	//for (i = 0; i < len; i++) elements[i] = (char*)zmalloc(sizeof(char*));;
 	
-	if (len != 1) {
+	if (len != 0) {
+	    if (num != 0){
 	    i = 0;
 	    r = strtok(uf,",");
 	    while (i<len && r != NULL) {
@@ -101,7 +105,12 @@ int findSds(sds list, char *s) {
    		    r = strtok(NULL,",");
 		    i++;
 		}
+		}
+		zfree(uf);
 	} else {
+	    if (num == 0) {
+	        if (!strcmp(list,s)) result = 1;
+	    }else {
 	    sds t = sdsnew(s);
 	    t = sdscat(t,",");
 	    if (strstr(list,t)) {
@@ -118,6 +127,7 @@ int findSds(sds list, char *s) {
         	}
         }
         sdsfree(t);
+        }
 	}
 	
     /***
@@ -332,7 +342,7 @@ void removeLastAddEdge(list *space) {
 int findClass(sds ufs, sds v) {
     int len;
     int result = -1;
-    sds *elements = sdssplitlen(ufs,sdslen(ufs),"/",1,&len);
+    sds *elements = sdssplitlen(ufs,strlen(ufs),"/",1,&len);
 
     for (int i = 0; i < len; i++) {
         if (strstr(elements[i], v)) {
@@ -410,16 +420,16 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 			int uargv2len = strchr(uargv2,',')==NULL?1:2;
 			
 			if (uargv1len == 1 && uargv2len == 1) {
-				if (!sdscmp(uargv1,uargv2)) {
+				if (!strcmp(uargv1,uargv2)) {
 					otop1argv1 = uargv1;
 					otop1argv2 = uargv2;
 				} else if (!strcmp(uargv1,"*") || !strcmp(uargv2,"*")) {
 					otop1argv1 = uargv1;
 					otop1argv2 = uargv2;					
-				} else if (!sdscmp(uargv1,sargv)) {
+				} else if (!strcmp(uargv1,sargv)) {
 					otop1argv1 = cpltClass(ufs,sargv);
 					otop1argv2 = uargv2;
-				} else if (!sdscmp(uargv2,sargv)) {
+				} else if (!strcmp(uargv2,sargv)) {
 					otop1argv1 = uargv1;
 					otop1argv2 = cpltClass(ufs,sargv);
 				} else {
@@ -435,7 +445,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					if (find(elements,sargv,len)) {
 					    //c in a
 						otop1argv1 = cpltClass(ufs,sargv);
-						if (sdscmp(uargv2,sargv)) {
+						if (strcmp(uargv2,sargv)) {
 						    //b != c
 							otop1argv2 = uargv2;
 						} else {
@@ -456,7 +466,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					    //c not in a
 						otop1argv1 = uargv1;
 					}
-					if (!sdscmp(uargv2,sargv)){
+					if (!strcmp(uargv2,sargv)){
 						otop1argv2 = cpltClass(ufs,sargv);
 					} else {
 						otop1argv2 = uargv2;
@@ -470,7 +480,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				if (find(elements,uargv1,len)) {
 					if (find(elements,sargv,len)) {
 						otop1argv2 = cpltClass(ufs,sargv);
-						if (sdscmp(uargv1,sargv)) {
+						if (strcmp(uargv1,sargv)) {
 							otop1argv1 = uargv1;
 						} else {
 							otop1argv1 = cpltClass(ufs,sargv);
@@ -485,7 +495,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					} else {
 						otop1argv2 = uargv2;
 					}
-					if (!sdscmp(uargv1,sargv)){
+					if (!strcmp(uargv1,sargv)){
 						otop1argv1 = cpltClass(ufs,sargv);
 					} else {
 						otop1argv1 = uargv1;
@@ -539,16 +549,16 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 			int uargv1len = strchr(uargv1,',')==NULL?1:2;
 			int uargv2len = strchr(uargv2,',')==NULL?1:2;
 			if (uargv1len == 1 && uargv2len == 1) {
-				if (!sdscmp(uargv1,uargv2)) {
+				if (!strcmp(uargv1,uargv2)) {
 					otop2argv1 = uargv1;
 					otop2argv2 = uargv2;
 				} else if (!strcmp(uargv1,"*") || !strcmp(uargv2,"*")) {
 					otop2argv1 = uargv1;
 					otop2argv2 = uargv2;					
-				} else if (!sdscmp(uargv1,sargv)) {
+				} else if (!strcmp(uargv1,sargv)) {
 					otop2argv1 = cpltClass(ufs,sargv);
 					otop2argv2 = uargv2;
-				} else if (!sdscmp(uargv2,sargv)) {
+				} else if (!strcmp(uargv2,sargv)) {
 					otop2argv1 = uargv1;
 					otop2argv2 = cpltClass(ufs,sargv);
 				} else {
@@ -563,7 +573,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					//b in a
 					if (find(elements,sargv,len)) {
 						otop2argv1 = cpltClass(ufs,sargv);
-						if (sdscmp(uargv2,sargv)) {
+						if (strcmp(uargv2,sargv)) {
 							otop2argv2 = uargv2;
 						} else {
 							otop2argv2 = cpltClass(ufs,sargv);
@@ -578,7 +588,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					} else {
 						otop2argv1 = uargv1;
 					}
-					if (!sdscmp(uargv2,sargv)){
+					if (!strcmp(uargv2,sargv)){
 						otop2argv2 = cpltClass(ufs,sargv);
 					} else {
 						otop2argv2 = uargv2;
@@ -592,7 +602,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				if (find(elements,uargv1,len)) {
 					if (find(elements,sargv,len)) {
 						otop2argv2 = cpltClass(ufs,sargv);
-						if (sdscmp(uargv1,sargv)) {
+						if (strcmp(uargv1,sargv)) {
 							otop2argv1 = uargv1;
 						} else {
 							otop2argv1 = cpltClass(ufs,sargv);
@@ -607,7 +617,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					} else {
 						otop2argv2 = uargv2;
 					}
-					if (!sdscmp(uargv1,sargv)){
+					if (!strcmp(uargv1,sargv)){
 						otop2argv1 = cpltClass(ufs,sargv);
 					} else {
 						otop2argv1 = uargv1;
@@ -684,7 +694,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				otop1argv1 = uargv1;
 				otop1argv2 = uargv2;
 				
-				if (!sdscmp(uargv1,uargv2)) {
+				if (!strcmp(uargv1,uargv2)) {
 					otop2argv1 = sargv;
 				} else {
 					if (sargvlen == 1) {
@@ -699,7 +709,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 						    }
 					    } else {
 					    	//a and b from different classes, consider c is equal to a/b
-					    	if (!sdscmp(uargv1,sargv) || !sdscmp(uargv2,sargv)) {
+					    	if (!strcmp(uargv1,sargv) || !strcmp(uargv2,sargv)) {
 					    	    //a/b == c, c = c.class-c
 					    		otop2argv1 = cpltClass(ufs,sargv);
 					    	} else {
@@ -741,7 +751,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				otop2argv1 = uargv1;
 				otop2argv2 = uargv2;
 				
-				if (!sdscmp(uargv1,uargv2)) {
+				if (!strcmp(uargv1,uargv2)) {
 					otop1argv1 = sargv;
 				} else {
 					if (sargvlen == 1) {
@@ -749,14 +759,14 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 							otop1argv1 = sargv;
 						} else if (findClass(ufs,uargv1) == findClass(ufs,uargv2)) {
 					        //a and b in the same class, c is set to NULL
-					        if (!sdscmp(uargv1,sargv) || !sdscmp(uargv2,sargv)) {
+					        if (!strcmp(uargv1,sargv) || !strcmp(uargv2,sargv)) {
 							    otop1argv1 = shared.star;
 						    } else {
 							    otop1argv1 = sargv;
 						    }
 					    } else {
 					    	//a and b from different classes, consider c is equal to a/b
-					    	if (!sdscmp(uargv1,sargv) || !sdscmp(uargv2,sargv)) {
+					    	if (!strcmp(uargv1,sargv) || !strcmp(uargv2,sargv)) {
 					    	    //a/b == c, c = c.class-c			    						   	   
 					    		otop1argv1 = cpltClass(ufs,sargv);
 					    	} else {
@@ -848,7 +858,9 @@ sds calculateOids(vertice* v, sds oids){
     return NULL;
 }
 
-vertice *locateRVertice(vertice* q, sds ctx, sds t) {
+vertice *locateRVertice(vertice* q, sds ctx) {
+    sds t = sdsempty();
+    t = sdscat(t,"init");
 	while (q) {
 	    if ((!strcmp(ctx,"init") && !strcmp(t,"init")) || !sdscntcmp(t,ctx)) {
             sdsfree(t);
@@ -863,10 +875,12 @@ vertice *locateRVertice(vertice* q, sds ctx, sds t) {
 		    t = sdscat(t,q->redge->oid);
 		    q = q->redge->adjv;
 		} else {
+		    sdsfree(t);
 		    serverLog(LL_LOG,"2D state space does not have the vertice");
 		    return NULL;
 		}
 	} 
+	sdsfree(t);
 	serverLog(LL_LOG,"2D state space does not have the vertice");
 	return NULL;
 }
@@ -877,9 +891,7 @@ vertice *locateVertice(list* space, sds ctx) {
             return locateLVertice(space->head->value);
 		}
 		else {
-			sds temp = sdsnew("init");
-			vertice* result = locateRVertice(space->head->value,ctx,temp);
-			sdsfree(temp);
+			vertice* result = locateRVertice(space->head->value,ctx);
 			if (!result) serverLog(LL_LOG,"2D state space does not exist the vertex");
 			return result;    
 	    }

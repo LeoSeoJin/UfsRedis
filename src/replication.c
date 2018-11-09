@@ -174,7 +174,6 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
     listNode *ln;
     listIter li;
     int j, len;
-    char llstr[LONG_STR_SIZE];
     if (argc==1) serverLog(LL_LOG,"call replicationFeedSlaves PING cmd");
     /* If the instance is not a top level master, return ASAP: we'll just proxy
      * the stream of data we receive from our master instead, in order to
@@ -189,39 +188,6 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
 
     /* We can't have slaves attached and no backlog. */
     serverAssert(!(listLength(slaves) != 0 && server.repl_backlog == NULL));
-
-    /* Send SELECT command to every slave if needed. */
-    if (server.slaveseldb != dictid) {
-        robj *selectcmd;
-
-        /* For a few DBs we have pre-computed SELECT command. */
-        if (dictid >= 0 && dictid < PROTO_SHARED_SELECT_CMDS) {
-            selectcmd = shared.select[dictid];
-        } else {
-            int dictid_len;
-
-            dictid_len = ll2string(llstr,sizeof(llstr),dictid);
-            selectcmd = createObject(OBJ_STRING,
-                sdscatprintf(sdsempty(),
-                "*2\r\n$6\r\nSELECT\r\n$%d\r\n%s\r\n",
-                dictid_len, llstr));
-        }
-
-        /* Add the SELECT command into the backlog. */
-        if (server.repl_backlog) feedReplicationBacklogWithObject(selectcmd);
-
-        /* Send it to slaves. */
-        listRewind(slaves,&li);
-        while((ln = listNext(&li))) {
-            client *slave = ln->value;
-            if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) continue;
-            addReply(slave,selectcmd);
-        }
-
-        if (dictid < 0 || dictid >= PROTO_SHARED_SELECT_CMDS)
-            decrRefCount(selectcmd);
-    }
-    server.slaveseldb = dictid;
 
     /* Write the command to the replication backlog if any. */
     if (server.repl_backlog) {
@@ -283,7 +249,6 @@ void replicationFeedExSlave(list *slaves, int dictid, uint64_t id, robj **argv, 
     listNode *ln;
     listIter li;
     int j, len;
-    char llstr[LONG_STR_SIZE];
     serverLog(LL_LOG,"call replicationFeedExSlaves");
     /* If the instance is not a top level master, return ASAP: we'll just proxy
      * the stream of data we receive from our master instead, in order to
@@ -298,43 +263,6 @@ void replicationFeedExSlave(list *slaves, int dictid, uint64_t id, robj **argv, 
 
     /* We can't have slaves attached and no backlog. */
     serverAssert(!(listLength(slaves) != 0 && server.repl_backlog == NULL));
-
-    /* Send SELECT command to every slave if needed. */
-    if (server.slaveseldb != dictid) {
-        robj *selectcmd;
-
-        /* For a few DBs we have pre-computed SELECT command. */
-        if (dictid >= 0 && dictid < PROTO_SHARED_SELECT_CMDS) {
-            selectcmd = shared.select[dictid];
-        } else {
-            int dictid_len;
-
-            dictid_len = ll2string(llstr,sizeof(llstr),dictid);
-            selectcmd = createObject(OBJ_STRING,
-                sdscatprintf(sdsempty(),
-                "*2\r\n$6\r\nSELECT\r\n$%d\r\n%s\r\n",
-                dictid_len, llstr));
-        }
-
-        /* Add the SELECT command into the backlog. */
-        if (server.repl_backlog) feedReplicationBacklogWithObject(selectcmd);
-
-        /* Send it to slaves. */
-        listRewind(slaves,&li);
-        while((ln = listNext(&li))) {
-            client *slave = ln->value;
-
-			/*Don't feed slave with specified id*/
-			if (slave->id == id) continue;
-			
-            if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) continue;
-            addReply(slave,selectcmd);
-        }
-
-        if (dictid < 0 || dictid >= PROTO_SHARED_SELECT_CMDS)
-            decrRefCount(selectcmd);
-    }
-    server.slaveseldb = dictid;
 
     /* Write the command to the replication backlog if any. */
     if (server.repl_backlog) {
@@ -393,10 +321,43 @@ void replicationFeedExSlave(list *slaves, int dictid, uint64_t id, robj **argv, 
 void replicationFeedMaster(int dictid, robj **argv, int argc) {
 	if (server.master == NULL) return;
     serverLog(LL_LOG,"replicationFeedMaster: port %d", server.masterport);
-	//Client *c = server.master;
+    int j,len;
+    /* If there aren't slaves, and there is no backlog buffer to populate,
+     * we can return ASAP. */
+    if (server.repl_backlog == NULL && server.masterhost == NULL) return;
+
+    /* We can't have slaves attached and no backlog. */
+    serverAssert(!(server.repl_backlog == NULL && server.masterhost == NULL));
+
+    if (server.repl_backlog) {
+        char aux[LONG_STR_SIZE+3];
+
+        /* Add the multi bulk reply length. */
+        aux[0] = '*';
+        len = ll2string(aux+1,sizeof(aux)-1,argc);
+        aux[len+1] = '\r';
+        aux[len+2] = '\n';
+        feedReplicationBacklog(aux,len+3);
+
+        for (j = 0; j < argc; j++) {
+            long objlen = stringObjectLen(argv[j]);
+
+            /* We need to feed the buffer with the object as a bulk reply
+             * not just as a plain string, so create the $..CRLF payload len
+             * and add the final CRLF */
+            aux[0] = '$';
+            len = ll2string(aux+1,sizeof(aux)-1,objlen);
+            aux[len+1] = '\r';
+            aux[len+2] = '\n';
+            feedReplicationBacklog(aux,len+3);
+            feedReplicationBacklogWithObject(argv[j]);
+            feedReplicationBacklog(aux+len+1,2);
+        }
+    }	
+    
 	server.master->flags |= CLIENT_MASTER_FORCE_REPLY;
 	addReplyMultiBulkLen(server.master,argc);
-	for (int j = 0; j < argc; j++)
+	for (j = 0; j < argc; j++)
 		addReplyBulk(server.master,argv[j]);
 	server.master->flags &= ~CLIENT_MASTER_FORCE_REPLY;
 }
@@ -831,22 +792,6 @@ void syncCommand(client *c) {
     c->flags |= CLIENT_SLAVE;
     listAddNodeTail(server.slaves,c);
 	
-	/*create a 2D state space for the slave and add it to the spacelist of master*/
-	/***
-	if (spacelist == NULL) {
-		spacelist = zmalloc(sizeof(dss));
-		spacelist->spaces = listCreate();
-	}
-	verlist *v = createVerlist(c->slave_listening_port);
-    sds oids = sdsnew("init");
-	vertice *top = createVertice(oids);
-	//sdsfree(oids);
-	top->content = sdsempty();
-	listAddNodeTail(v->vertices,top);
-	listAddNodeTail(spacelist->spaces,v);
-	serverLog(LL_LOG,"create 2D state space for port %d ", c->slave_listening_port);
-	***/
-	
     /* Create the replication backlog if needed. */
     if (listLength(server.slaves) == 1 && server.repl_backlog == NULL) {
         /* When we create the backlog from scratch, we always use a new
@@ -856,7 +801,16 @@ void syncCommand(client *c) {
         clearReplicationId2();
         createReplicationBacklog();
     }
-
+    
+    /*create the replication backlog for slave*/
+    /**
+    if (server.masterhost && server.repl_backlog == NULL) {
+        changeReplicationId();
+        clearReplicationId2();
+        createReplicationBacklog();    
+    }
+    **/
+    
     /* CASE 1: BGSAVE is in progress, with disk target. */
     if (server.rdb_child_pid != -1 &&
         server.rdb_child_type == RDB_CHILD_TYPE_DISK)

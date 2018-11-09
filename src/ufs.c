@@ -335,12 +335,13 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
             }
     		
     		serverLog(LL_LOG,"argv1class: %d argv2class: %d ",argv1class, argv2class);
+            for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);           
             
             if (argv1class != argv2class) {
             	v_ufs = sdsempty();
                 int low = (argv1class < argv2class)? argv1class: argv2class;
                 int high = (argv1class > argv2class)? argv1class: argv2class;
-                /*           
+                //***          
                 uf = (char*)zmalloc(strlen(u)+1);
             	strcpy(uf,u);
 
@@ -386,7 +387,8 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
                     }
                 }
                 for (i = 0; i < len; i++) sdsfree(eles[i]);                
-                */  
+                /***/
+                /**  
                 temp = sdsempty();
                 temp = sdscat(temp,elements[low]);
                 temp = sdscat(temp,",");
@@ -407,6 +409,7 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
                         if (i != len-2) v_ufs = sdscat(v_ufs,"/");
                     }
                 }
+                **/
            } else {
                 v_ufs = sdsempty();
            }
@@ -427,9 +430,10 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
                } 
             }
             serverLog(LL_LOG,"argvclass: %d",argvclass);
+            for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
             
             if (argvclass != -1) {
-                for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
+                /**
                 temp = sdsempty();
                 temp = sdscat(temp,elements[argvclass]);
                 temp = sdsDel(temp,argv1);            
@@ -445,8 +449,9 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
                         v_ufs = sdscat(v_ufs,argv1);
                         if (argvclass != len-1) v_ufs = sdscat(v_ufs,"/");
                     }  
-                }            
-                /**                        
+                } 
+                **/           
+                //**                        
                 uf = (char*)zmalloc(strlen(u)+1);
                 strcpy(uf,u);
 
@@ -484,7 +489,7 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
                     }  
                 }
                 for (i = 0; i < len; i++) sdsfree(eles[i]);
-                **/
+                /**/
             } else {
                v_ufs = sdsempty();
             }
@@ -945,10 +950,31 @@ void controlAlg(client *c) {
 			listAddNodeTail(space,v);
 
 			if (!strcmp(c->argv[0]->ptr,"unionot")) {
-				u->redge = createOpEdge(OPTYPE_UNION,a1,a2,oid,v); 
+				if (strcmp(a1,c->argv[1]->ptr)) { 
+				    zfree(a1);
+				    a1 = NULL;
+			        a1 = (char*)zmalloc(sdslen(c->argv[1]->ptr)+1);
+			        memcpy(a1,c->argv[1]->ptr,sdslen(c->argv[1]->ptr));
+			        a1[sdslen(c->argv[1]->ptr)] = '\0';
+			    }
+				if (strcmp(a2,c->argv[2]->ptr)) { 
+				    zfree(a2);
+				    a2 = NULL;
+			        a2 = (char*)zmalloc(sdslen(c->argv[2]->ptr)+1);
+			        memcpy(a1,c->argv[2]->ptr,sdslen(c->argv[2]->ptr));
+			        a2[sdslen(c->argv[2]->ptr)] = '\0';
+			    }
+				u->redge = createOpEdge(OPTYPE_UNION,a1,a2,oid,v); 			    			    
 				updateVerticeUfsFromState(u->content,OPTYPE_UNION,c->argv[1]->ptr,c->argv[2]->ptr,v);
 			} else {
-				u->redge = createOpEdge(OPTYPE_SPLIT,a1,NULL,oid,v); 
+				if (strcmp(a1,c->argv[1]->ptr)) { 
+				    zfree(a1);
+				    a1 = NULL;
+			        a1 = (char*)zmalloc(sdslen(c->argv[1]->ptr)+1);
+			        memcpy(a1,c->argv[1]->ptr,sdslen(c->argv[1]->ptr));
+			        a1[sdslen(c->argv[1]->ptr)] = '\0';
+			    }
+				u->redge = createOpEdge(OPTYPE_SPLIT,a1,NULL,oid,v); 			    				
 				updateVerticeUfsFromState(u->content,OPTYPE_SPLIT,c->argv[1]->ptr,NULL,v);
 			}
 
