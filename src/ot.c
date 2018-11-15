@@ -48,26 +48,26 @@ sds sdsDel(sds list, char *t) {
 int find(sds *list, char *v, int len) {
     int result = 0;
 	for (int i = 0; i < len; i++) {
-	    serverLog(LL_LOG,"find %s from %s",v,list[i]);
+	    //serverLog(LL_LOG,"find %s from %s",v,list[i]);
 		if (!strcmp(v,list[i])) {
 		    result = 1;
 		    break;
 		}	
 	}
-	serverLog(LL_LOG,"find result: %d",result);
+	//serverLog(LL_LOG,"find result: %d",result);
 	return result;
 }
 
 /*Used for cpltClass function in ot.c, (sds char*)*/
-int findSds(sds list, char *s) {
-    serverLog(LL_LOG,"findSds %s from %s",s,list);
+int findSds(sds temp, char *s) {
+    printf("findSds %s from %s\n",s,temp);
     
     int result = 0;
     int i,len,num;
     char *uf,*r;
     
     len = strchr(s,',')?1:0;
-    num = strchr(list,',')?1:0;
+    num = strchr(temp,',')?1:0;
 
     if (len == 1) {
         uf = (char*)zmalloc(strlen(s)+1);
@@ -75,144 +75,48 @@ int findSds(sds list, char *s) {
         for (i = 0; i < (int)strlen(uf); i++)
 		    if (uf[i] == ',') len++;
 	}
-	
-	//char* elements[len];
-	//memset(elements,0,len);	
-	//for (i = 0; i < len; i++) elements[i] = (char*)zmalloc(sizeof(char*));;
-	
+    
 	if (len != 0) {
 	    if (num != 0){
-	    i = 0;
-	    r = strtok(uf,",");
-	    while (i<len && r != NULL) {
-            //strcpy((char*)elements[i],(char*)r);
-	        sds t = sdsnew(r);
-    	    t = sdscat(t,",");
-    	    if (strstr(list,t)) {
-    	        result = 1;
-    	    } else {
-        	    sdsclear(t);
-        	    t = sdscat(t,",");
-        	    t = sdscat(t,r);
-        	    if (strstr(list,t)) {
-        	        result = 1;
-        	    } else {
-            	    t = sdscat(t,",");
-            	    if (strstr(list,t)) result = 1;
-            	}
-            }
-            sdsfree(t);            
-   		    r = strtok(NULL,",");
-		    i++;
-		}
-		}
+	        sds list = sdsempty();
+	        list = sdscat(list,",");
+	        list = sdscat(list,temp);
+	        list = sdscat(list,",");
+	        
+	        i = 0;
+	        r = strtok(uf,",");
+	        while (i<len && r != NULL) {
+                sds t = sdsempty();
+                t = sdscat(t,",");
+                t = sdscat(t,r);
+                t = sdscat(t,",");
+                if (strstr(list,t)) result = 1;
+                sdsfree(t);            
+       		    r = strtok(NULL,",");
+    		    i++;
+	    	}
+	    	sdsfree(list);
+    	}
 		zfree(uf);
 	} else {
 	    if (num == 0) {
-	        if (!strcmp(list,s)) result = 1;
+	        if (!strcmp(temp,s)) result = 1;
 	    }else {
-	    sds t = sdsnew(s);
-	    t = sdscat(t,",");
-	    if (strstr(list,t)) {
-	        result = 1;
-	    } else {
-    	    sdsclear(t);
+   	        sds list = sdsempty();
+	        list = sdscat(list,",");
+	        list = sdscat(list,temp);
+	        list = sdscat(list,",");
+	        
+    	    sds t = sdsempty();
     	    t = sdscat(t,",");
     	    t = sdscat(t,s);
-    	    if (strstr(list,t)) {
-    	        result = 1;
-    	    } else {
-        	    t = sdscat(t,",");
-        	    if (strstr(list,t)) result = 1;
-        	}
+    	    t = sdscat(t,",");
+            if (strstr(list,t)) result = 1;
+            
+            sdsfree(t);  
+            sdsfree(list);
         }
-        sdsfree(t);
-        }
-	}
-	
-    /***
-    int result = 0;
-    int i,len,num;
-    char *uf,*r,*ulist,*rlist;
-    
-    uf = (char*)zmalloc(strlen(s)+1);
-	strcpy(uf,s);
-
-    len = 1;
-    for (i = 0; i < (int)strlen(uf); i++)
-		if (uf[i] == ',') len++;
-	
-	serverLog(LL_LOG,"uf: %s",uf);		
-	sds elements[len];
-	memset(elements,0,len);
-	for (i = 0; i < len; i++) elements[i] = sdsempty();
-	
-	if (len != 1) {
-	    i = 0;
-	    r = strtok(uf,",");
-	    while (i<len && r != NULL) {
-		    if (!elements[i]) elements[i] = sdsempty();
-		    elements[i] = sdscat(elements[i],r);
-		    serverLog(LL_LOG,"r: %s elements[%d]: %s",r,i,elements[i]);
-		    r = strtok(NULL,",");
-		    i++;
-		}
-	}
-	
-    zfree(uf);
-    uf = NULL;
-    
-    ulist = (char*)zmalloc(sdslen(list)+1);
-	strcpy(ulist,list); 
-	
-	num = 1;
-    for (i = 0; i < (int)strlen(ulist); i++)
-		if (ulist[i] == ',') num++;
-	serverLog(LL_LOG,"ulist: %s",ulist);			
-	sds classelements[num];
-	memset(classelements,0,num);
-	for (i = 0; i < num; i++) classelements[i] = sdsempty();
-				
-	if (num != 1) {
-	    i = 0;
-	    rlist = strtok(ulist,",");
-	    while (i<num && rlist!= NULL) {
-		    //classelements[i] = sdsempty();
-		    if (!classelements[i]) classelements[i] = sdsempty();
-		    classelements[i] = sdscat(classelements[i],rlist);
-		    serverLog(LL_LOG,"rlist: %s classelements[%d]: %s",rlist,i,classelements[i]);
-		    rlist = strtok(NULL,",");
-		    i++;
-		}
-	}
-    zfree(ulist);   
-    ulist = NULL;
-    
-    serverLog(LL_LOG,"len: %d num: %d",len,num);
-    if (len != 1) {
-        for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
-    } 
-    if (num != 1) {
-        for (int j = 0; j < num; j++) serverLog(LL_LOG,"classelements[%d] %s",j,classelements[j]);
-    }
-    
-    if (len == 1 && num == 1) {
-        serverLog(LL_LOG,"case1: find %s from %s",s,list);    
-        if (!strcmp(s,list)) result = 1;
-    } else if (len == 1 && num > 1) {
-        serverLog(LL_LOG,"case2: find %s from %s",s,list);
-        if (find(classelements,s,num)) result = 1;
-    } else if (len > 1 && num > 1) {
-        serverLog(LL_LOG,"case3: find %s from %s",elements[0],list);
-        if (find(classelements,elements[0],num)) result = 1;
-    } else {
-        result = 0; 
-    }
-    
-    for (int j = 0; j < len; j++) sdsfree(elements[j]);
-    for (int j = 0; j < num; j++) sdsfree(classelements[j]);
-    **/
-    serverLog(LL_LOG,"findsds result: %d",result);
+	}	
     return result;
 }
 
@@ -226,7 +130,7 @@ int sdscntcmp(char *t1, char *t2) {
     sds s2 = sdsempty();
     s1 = sdscat(s1,t1);
     s2 = sdscat(s2,t2);
-    serverLog(LL_LOG,"sdscntcmp: %s and %s",s1,s2);
+    //serverLog(LL_LOG,"sdscntcmp: %s and %s",s1,s2);
     
 	int len1,len2,i,result;
 	                                  
@@ -249,7 +153,7 @@ int sdscntcmp(char *t1, char *t2) {
 	sdsfreesplitres(oids2,len2);
 	sdsfree(s1);
   	sdsfree(s2);
-  	
+  	serverLog(LL_LOG,"sdscntcmp result: %d",result);
   	return result;
 }
 
