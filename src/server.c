@@ -130,13 +130,11 @@ int op_num = 0;
  *    are not fast commands.
  */
 struct redisCommand redisCommandTable[] = {
-	//{"union",unionCommand,4,"r",0,NULL,NULL,0,0,0,0,0},
 	{"find",findCommand,3,"r",0,NULL,NULL,0,0,0,0,0},
-	//{"split",splitCommand,3,"r",0,NULL,NULL,0,0,0,0,0},
 	{"umembers",umembersCommand,2,"r",0,NULL,NULL,0,0,0,0,0}, //add a simple cmd to print "hello world" to logfile
 	{"test",testCommand,-1,"r",0,NULL,NULL,0,0,0,0,0},
-	{"unionot",unionotCommand,-1,"r",0,NULL,otUfs,0,0,0,0,0},
-	{"splitot",splitotCommand,-1,"r",0,NULL,otUfs,0,0,0,0,0},	
+	{"union",unionCommand,-1,"r",0,NULL,otUfs,0,0,0,0,0},
+	{"split",splitCommand,-1,"r",0,NULL,otUfs,0,0,0,0,0},	
 	{"uinit",uinitCommand,3,"r",0,NULL,NULL,0,0,0,0,0},
     {"module",moduleCommand,-2,"as",0,NULL,NULL,0,0,0,0,0},
     {"get",getCommand,2,"rF",0,NULL,NULL,1,1,1,0,0},
@@ -395,33 +393,33 @@ void serverLogCmd(client *c) {
 		case 4: serverLog(LL_LOG,"cmd: %s %s %s %s client: %d %d %d ", 
 		                (char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,c->replstate, c->flags, c->slave_listening_port);break;
 		case 5:
-		/*** 
-		{if(!strcmp(c->argv[0]->ptr,"splitot")) {
+		//*** 
+		{if(!strcmp(c->argv[0]->ptr,"split")) {
  				serverLog(LL_LOG,"cmd: %s %s %s client: %d %d %d ", 
 		                (char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, c->replstate, c->flags, c->slave_listening_port);
                           } else {
 				serverLog(LL_LOG,"cmd: %s %s %s %s %s client: %d %d %d ", 
 				(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,c->replstate, c->flags, c->slave_listening_port);} 
 				break;}
-		**/
-		/****/
+		/**/
+		/****
 		serverLog(LL_LOG,"cmd: %s %s %s %s %s client: %d %d %d ", (char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,c->replstate, c->flags, c->slave_listening_port);
 				break;
-	    /***/	
+	    ***/	
 		case 6: 
-		/****
-		{if(!strcmp(c->argv[0]->ptr,"unionot")) {
+		//****
+		{if(!strcmp(c->argv[0]->ptr,"union")) {
 				serverLog(LL_LOG,"cmd: %s %s %s %s client: %d %d %d ", 
 				(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,c->replstate, c->flags, c->slave_listening_port);
 			} else {serverLog(LL_LOG,"cmd: %s %s %s %s %s %s client: %d %d %d ", 
 		(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,(char *)c->argv[5]->ptr,c->replstate, c->flags, c->slave_listening_port); }
 			break;}
-		***/
 		/***/
+		/***
 		serverLog(LL_LOG,"cmd: %s %s %s %s %s %s client: %d %d %d ", 
 		(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,(char *)c->argv[5]->ptr,c->replstate, c->flags, c->slave_listening_port); 
 			break;
-	    /***/
+	    ***/
 		case 7: serverLog(LL_LOG,"cmd: %s %s %s %s %s %s %s client: %d %d %d ", 
 		(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,(char *)c->argv[5]->ptr,(char *)c->argv[6]->ptr,c->replstate, c->flags, c->slave_listening_port); break;
 		case 8: serverLog(LL_LOG,"cmd: %s %s %s %s %s %s %s %s client: %d %d %d ", 
@@ -432,61 +430,19 @@ void serverLogCmd(client *c) {
 	}	
 }
 
-/**
-void serverLogArgv(robj **argv) {
-	if (!argv) {
-		serverLog(LL_LOG,"error argv is null");
-		return;
-	}
-	//serverLog(LL_LOG,"serverLogArgv: cmd: %s",argv[0]->ptr);
-	//if (!strcmp(argv[0]->ptr,"splitot")) 
-	if (argv[0] == shared.splitot)
-		serverLog(LL_LOG,"cmd(ot): %s %s ", (char *)argv[0]->ptr, (char *)argv[1]->ptr);
-	//if (!strcmp(argv[0]->ptr,"unionot")) 
-	if (argv[0] == shared.unionot)
-		serverLog(LL_LOG,"cmd(ot): %s %s %s ", (char *)argv[0]->ptr, (char *)argv[1]->ptr,(char *)argv[2]->ptr);
-}
-**/
-void serverLogArgv(dedge *e) {
-    if (!e) {
+void serverLogArgv(dedge *e, dedge *p) {
+    if (!e || !p) {
        serverLog(LL_LOG,"error argv is null");
        return;
     }
-    //serverLog(LL_LOG,"serverLogArgv: cmd: %s",argv[0]->ptr);
-    //if (!strcmp(argv[0]->ptr,"splitot")) 
-    if (e->optype == 2)
-       serverLog(LL_LOG,"cmd(ot): splitot %s ", (char *)e->argv1);
-    //if (!strcmp(argv[0]->ptr,"unionot")) 
-    if (e->optype == 1)
-       serverLog(LL_LOG,"cmd(ot): unionot %s %s ", (char *)e->argv1,(char *)e->argv2);
+    if (e->optype == 2) {
+       if (p->optype == 1) serverLog(LL_LOG,"cmd(ot): split %s, union %s %s", (char *)e->argv1,(char*)p->argv1,(char*)p->argv2);
+       else serverLog(LL_LOG,"cmd(ot): split %s, split %s", (char *)e->argv1,(char*)p->argv1);
+    } else if (e->optype == 1) {
+       if (p->optype == 1) serverLog(LL_LOG,"cmd(ot): union %s %s, union %s %s", (char *)e->argv1,(char *)e->argv2,(char*)p->argv1,(char*)p->argv2);
+       else serverLog(LL_LOG,"cmd(ot): union %s %s, split %s", (char *)e->argv1,(char *)e->argv2,(char*)p->argv1);
+    } 
 }
-
-/*
-void serverLogCmd(client *c) {
-	int argument_num = c->argc;
-	switch(argument_num){
-		case 1: serverLog(LL_LOG,"cmd: %s flag: %s client: %d %d %d ",
-		c->argv[0]->ptr,c->cmd->sflags, c->replstate, c->flags, c->slave_listening_port); break;
-		case 2: serverLog(LL_LOG,"cmd: %s %s flag: %s client: %d %d %d ", 
-		c->argv[0]->ptr, c->argv[1]->ptr,c->cmd->sflags,c->replstate, c->flags, c->slave_listening_port); break;
-		case 3: serverLog(LL_LOG,"cmd: %s %s %s flag: %s client: %d %d %d ", 
-		c->argv[0]->ptr, c->argv[1]->ptr, c->argv[2]->ptr,c->cmd->sflags,c->replstate, c->flags, c->slave_listening_port); break;
-		case 4: serverLog(LL_LOG,"cmd: %s %s %s %s flag: %s client: %d %d %d ", 
-		c->argv[0]->ptr, c->argv[1]->ptr, c->argv[2]->ptr, c->argv[3]->ptr,c->cmd->sflags,c->replstate, c->flags, c->slave_listening_port); break;
-		case 5: serverLog(LL_LOG,"cmd: %s %s %s %s %s flag: %s client: %d %d %d ", 
-		c->argv[0]->ptr, c->argv[1]->ptr, c->argv[2]->ptr, c->argv[3]->ptr,c->argv[4]->ptr,c->cmd->sflags,c->replstate, c->flags, c->slave_listening_port); break;
-		case 6: serverLog(LL_LOG,"cmd: %s %s %s %s %s %s flag: %s client: %d %d %d ", 
-		c->argv[0]->ptr, c->argv[1]->ptr, c->argv[2]->ptr, c->argv[3]->ptr,c->argv[4]->ptr,c->argv[5]->ptr,c->cmd->sflags,c->replstate, c->flags, c->slave_listening_port); break;
-		case 7: serverLog(LL_LOG,"cmd: %s %s %s %s %s %s %s flag: %s client: %d %d %d ", 
-		c->argv[0]->ptr, c->argv[1]->ptr, c->argv[2]->ptr, c->argv[3]->ptr,c->argv[4]->ptr,c->argv[5]->ptr,c->argv[6]->ptr,c->cmd->sflags,c->replstate, c->flags, c->slave_listening_port); break;
-		case 8: serverLog(LL_LOG,"cmd: %s %s %s %s %s %s %s %s flag: %s client: %d %d %d ", 
-		c->argv[0]->ptr, c->argv[1]->ptr, c->argv[2]->ptr, c->argv[3]->ptr,c->argv[4]->ptr,c->argv[5]->ptr,c->argv[6]->ptr,c->argv[7]->ptr,c->cmd->sflags,c->replstate, c->flags, c->slave_listening_port); break;
-		case 9: serverLog(LL_LOG,"cmd: %s %s %s %s %s %s %s %s %s flag: %s client: %d %d %d ", 
-		c->argv[0]->ptr, c->argv[1]->ptr, c->argv[2]->ptr, c->argv[3]->ptr,c->argv[4]->ptr,c->argv[5]->ptr,c->argv[6]->ptr,c->argv[7]->ptr,c->argv[8]->ptr,c->cmd->sflags,c->replstate, c->flags, c->slave_listening_port); break;
-		default: serverLog(LL_LOG,"cmd: %s", c->cmd->name);break;
-	}	
-}
-*/
 
 /* Log a fixed message without printf-alike capabilities, in a way that is
  * safe to call from a signal handler.

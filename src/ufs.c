@@ -288,7 +288,7 @@ void removeAdjEdge(cudGraph *ufs, char *v, sds *list, int len) {
 }
 
 void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vertice *v) {
-    serverLog(LL_LOG,"entering updateVerticeUfsFromState");
+    //serverLog(LL_LOG,"entering updateVerticeUfsFromState");
     int len, i;
     sds v_ufs;
     sds temp = NULL;
@@ -318,10 +318,10 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
     zfree(uf);
     uf = NULL;
     
-    for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
+    //for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
    
     if (type == OPTYPE_UNION) {
-	   	serverLog(LL_LOG,"updaeVerticeState from  u %s unionot %s %s",u,argv1,argv2);
+	   	serverLog(LL_LOG,"updaeVerticeState from  u %s union %s %s",u,argv1,argv2);
 		if (!strcmp(argv1,"*") || !strcmp(argv2,"*")) {
 			v_ufs = sdsempty();
 		} else {
@@ -334,8 +334,8 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
                 if (argv1class != -1 && argv2class != -1) break;
             }
     		
-    		serverLog(LL_LOG,"argv1class: %d argv2class: %d ",argv1class, argv2class);
-            for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);           
+    		//serverLog(LL_LOG,"argv1class: %d argv2class: %d ",argv1class, argv2class);
+            //for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);           
             
             if (argv1class != argv2class) {
             	v_ufs = sdsempty();
@@ -364,7 +364,7 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
                 zfree(uf);                
                 uf = NULL;
                 
-                for (int j = 0; j < len; j++) serverLog(LL_LOG,"eles[%d] %s",j,eles[j]);
+                //for (int j = 0; j < len; j++) serverLog(LL_LOG,"eles[%d] %s",j,eles[j]);
                 
                 temp = sdsempty();
                 temp = sdscat(temp,eles[low]);
@@ -387,35 +387,13 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
                     }
                 }
                 for (i = 0; i < len; i++) sdsfree(eles[i]);                
-                /***/
-                /**  
-                temp = sdsempty();
-                temp = sdscat(temp,elements[low]);
-                temp = sdscat(temp,",");
-                temp = sdscat(temp,elements[high]);  
-                for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);           
-                for (i = 0; i < len; i++) {
-                	if (i == high) continue;
-    				if (i == low) {
-                        serverLog(LL_LOG,"temp: %s",temp);
-        				v_ufs = sdscat(v_ufs,temp); 
-        	        } else {
-        	            serverLog(LL_LOG,"elements[%d] %s",i,elements[i]);
-        	            v_ufs = sdscat(v_ufs,elements[i]);
-        	        }
-                    if (high != len-1) {
-                        if (i != len-1) v_ufs = sdscat(v_ufs,"/");
-                    } else {
-                        if (i != len-2) v_ufs = sdscat(v_ufs,"/");
-                    }
-                }
-                **/
+
            } else {
                 v_ufs = sdsempty();
            }
         }       
    } else {
-       serverLog(LL_LOG,"updaeVerticeUfsFromState: %s splitot %s",u,argv1);
+       serverLog(LL_LOG,"updaeVerticeUfsFromState: %s split %s",u,argv1);
        	if (!strcmp(argv1,"*")) {
        	    v_ufs = sdsempty();
        	} else { 
@@ -430,28 +408,9 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
                } 
             }
             serverLog(LL_LOG,"argvclass: %d",argvclass);
-            for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
+            //for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
             
-            if (argvclass != -1) {
-                /**
-                temp = sdsempty();
-                temp = sdscat(temp,elements[argvclass]);
-                temp = sdsDel(temp,argv1);            
-                
-            	v_ufs = sdsempty();
-                for (i = 0; i < len; i++) {
-                    if (i != argvclass) {
-                        v_ufs = sdscat(v_ufs,elements[i]);
-                        if (i != len-1) v_ufs = sdscat(v_ufs,"/");
-                    } else {
-                        v_ufs = sdscat(v_ufs,temp);
-                        v_ufs = sdscat(v_ufs,"/");
-                        v_ufs = sdscat(v_ufs,argv1);
-                        if (argvclass != len-1) v_ufs = sdscat(v_ufs,"/");
-                    }  
-                } 
-                **/           
-                //**                        
+            if (argvclass != -1) {                    
                 uf = (char*)zmalloc(strlen(u)+1);
                 strcpy(uf,u);
 
@@ -511,7 +470,7 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
 }
 
 void updateVerticeUfs(cudGraph *ufs, vertice *v) { 
-	serverLog(LL_LOG,"updateVerticeUfs start");
+	//serverLog(LL_LOG,"updateVerticeUfs start");
 	int i,j;
 	int skip = 0;
 	int flag = 0;
@@ -569,7 +528,7 @@ void updateVerticeUfs(cudGraph *ufs, vertice *v) {
 	v->content = (char*)zmalloc(sdslen(result)+1);
 	strcpy(v->content,result);	
 	sdsfree(result);
-	serverLog(LL_LOG,"updateVerticeUfs(end): %s",v->content);
+	//serverLog(LL_LOG,"updateVerticeUfs(end): %s",v->content);
 }
 
 
@@ -669,7 +628,7 @@ void splitProc(client *c, sds argv1) {
 }
 
 int checkArgv(client *c, robj **argv) {
-    if (!strcmp(c->argv[0]->ptr,"unionot")) {
+    if (!strcmp(c->argv[0]->ptr,"union")) {
         return checkUnionArgv(c, argv);
     } else {
         return checkSplitArgv(c, argv);
@@ -850,7 +809,7 @@ void controlAlg(client *c) {
 			memcpy(coid,oid,sdslen(oid));
 			coid[sdslen(oid)]='\0';
 			
-			if (!strcmp(c->argv[0]->ptr,"unionot")) {
+			if (!strcmp(c->argv[0]->ptr,"union")) {
 			    a1 = (char*)zmalloc(sdslen(c->argv[1]->ptr)+1);
 			    memcpy(a1,c->argv[1]->ptr,sdslen(c->argv[1]->ptr));
 			    a1[sdslen(c->argv[1]->ptr)] = '\0';
@@ -883,7 +842,7 @@ void controlAlg(client *c) {
                 //decrRefCount(argv[1]);
                 //decrRefCount(argv[2]);
                     	        
-                serverLog(LL_LOG,"rewriteClientCommandArgument, unionot, %s %s refcount: %d",v->ledge->oid, oids,argv[0]->refcount);
+                serverLog(LL_LOG,"rewriteClientCommandArgument, union, %s %s refcount: %d",v->ledge->oid, oids,argv[0]->refcount);
                 serverLogCmd(c);       
 			} else {
                 //split x oid ctx key
@@ -899,15 +858,15 @@ void controlAlg(client *c) {
                 //decrRefCount(argv[1]);
                 //decrRefCount(argv[2]);
                 
-	    		serverLog(LL_LOG,"rewriteClientCommandArgument, splitot, %s %s refcount: %d",v->ledge->oid, oids,argv[0]->refcount);
+	    		serverLog(LL_LOG,"rewriteClientCommandArgument, split, %s %s refcount: %d",v->ledge->oid, oids,argv[0]->refcount);
                 serverLogCmd(c);      
 			}
 			sdsfree(oid);
 			sdsfree(oids);
 			
 			//execution of local generated operation
-			if (!strcmp(c->argv[0]->ptr, "unionot")) unionProc(c, c->argv[1]->ptr,c->argv[2]->ptr); 
-            if (!strcmp(c->argv[0]->ptr, "splitot")) splitProc(c, c->argv[1]->ptr);
+			if (!strcmp(c->argv[0]->ptr, "union")) unionProc(c, c->argv[1]->ptr,c->argv[2]->ptr); 
+            if (!strcmp(c->argv[0]->ptr, "split")) splitProc(c, c->argv[1]->ptr);
 			
             //update ufs of vertice
             if (v->ledge) {
@@ -915,10 +874,10 @@ void controlAlg(client *c) {
 			}
 			
 			//guarantee local operation firstly executed, sleep several seconds, then receive operation
-            //if (!strcmp(c->argv[0]->ptr, "unionot")) usleep(80000); //50ms
-            //if (!strcmp(c->argv[0]->ptr, "splitot")) usleep(50000);
-            if (!strcmp(c->argv[0]->ptr, "unionot")) sleep(3); 
-            if (!strcmp(c->argv[0]->ptr, "splitot")) sleep(2);
+            if (!strcmp(c->argv[0]->ptr, "union")) usleep(80000); //50ms
+            if (!strcmp(c->argv[0]->ptr, "split")) usleep(50000);
+            //if (!strcmp(c->argv[0]->ptr, "union")) sleep(2); 
+            //if (!strcmp(c->argv[0]->ptr, "split")) sleep(1);
 		} else {
 			/*remote processing: op argv1 (argv2) oid oids tag1*/
 			sds ctx;
@@ -949,7 +908,7 @@ void controlAlg(client *c) {
 			vertice *v = createVertice();			
 			listAddNodeTail(space,v);
 
-			if (!strcmp(c->argv[0]->ptr,"unionot")) {
+			if (!strcmp(c->argv[0]->ptr,"union")) {
 				if (strcmp(a1,c->argv[1]->ptr)) { 
 				    zfree(a1);
 				    a1 = NULL;
@@ -986,7 +945,7 @@ void controlAlg(client *c) {
 			vertice *p = v;
 			//oids = sdsnew(p->oids);
 			
-			if (u->ledge) serverLog(LL_LOG,"ot process"); 
+			if (u->ledge) serverLog(LL_LOG,"ot process start"); 
 			while (u->ledge != NULL) {
 				vertice *pl = createVertice();	
 				listAddNodeTail(space,pl);
@@ -1003,26 +962,27 @@ void controlAlg(client *c) {
 				p = pl;
 			}
 			
+			serverLog(LL_LOG,"ot process finish");
 			/*execute the trasformed remote operation (finish ot process)
 			 *or original remote operation (u->ledge = NULL, no ot process)
 			 */
-            if (!strcmp(c->argv[0]->ptr, "unionot")) {
+            if (!strcmp(c->argv[0]->ptr, "union")) {
             	//unionProc(c,u->redge->argv); 
             	serverLog(LL_LOG,"unionProc: %d %s %s",u->redge->optype,u->redge->argv1,u->redge->argv2);
             	unionProc(c,u->redge->argv1,u->redge->argv2);            	
-            	//usleep(80000);
-            	sleep(3);
+            	usleep(80000);
+            	//sleep(2);
             }	
-            if (!strcmp(c->argv[0]->ptr, "splitot")) {
+            if (!strcmp(c->argv[0]->ptr, "split")) {
                 //splitProc(c,u->redge->argv);
                 serverLog(LL_LOG,"splitProc: %d %s",u->redge->optype,u->redge->argv1);                
                 splitProc(c,u->redge->argv1);
-                //usleep(50000);
-                sleep(2);
+                usleep(50000);
+                //sleep(1);
             }
 		}
 	} else {
-		/*server processing, unionot x y oid ctx tag1*/
+		/*server processing, union x y oid ctx tag1*/
 		sds ctx;
         char *a1 = NULL;
         char *a2 = NULL;
@@ -1059,10 +1019,10 @@ void controlAlg(client *c) {
 		vertice *v = createVertice();	
 		listAddNodeTail(s->vertices,v);
 
-		serverLog(LL_LOG,"server processing, memory (begining): %ld ", zmalloc_used_memory());
+		//serverLog(LL_LOG,"server processing, memory (begining): %ld ", zmalloc_used_memory());
 		
 		
-		if (!strcmp(c->argv[0]->ptr,"unionot")) { 
+		if (!strcmp(c->argv[0]->ptr,"union")) { 
 			u->ledge = createOpEdge(OPTYPE_UNION,a1,a2,oid,v);
 		} else {
 			u->ledge = createOpEdge(OPTYPE_SPLIT,a1,a2,oid,v);
@@ -1075,10 +1035,10 @@ void controlAlg(client *c) {
         
         serverLog(LL_LOG,"new local edge: %d %s %s %s ",u->ledge->optype, u->ledge->argv1,u->ledge->argv2,u->ledge->oid); 
         
-        serverLog(LL_LOG,"server processing, memory (before ot): %ld ", zmalloc_used_memory());
+        //serverLog(LL_LOG,"server processing, memory (before ot): %ld ", zmalloc_used_memory());
 		vertice *ur;
 		vertice *p = v;
-		if (u->redge) serverLog(LL_LOG,"ot process");
+		if (u->redge) serverLog(LL_LOG,"ot process start");
 		while (u->redge != NULL) {  
     	    oids = sdscat(oids,",");
     		oids = sdscat(oids,u->redge->oid);  		
@@ -1093,18 +1053,12 @@ void controlAlg(client *c) {
 			c->cmd->otproc(u->content,u->redge,u->ledge,p->redge,ur->ledge,OT_SPLIT);
 			
 			updateVerticeUfsFromState(ur->content,ur->ledge->optype,ur->ledge->argv1,ur->ledge->argv2,pr); 
-			serverLog(LL_LOG,"updaeVerticeState finish (ot process) pr->content: %s",pr->content);			
+			//serverLog(LL_LOG,"updaeVerticeState finish (ot process) pr->content: %s",pr->content);			
 			
-			/**
-			if (ur->redge) {		
-    			oids = sdscat(oids,",");
-    			oids = sdscat(oids,u->redge->oid);
-    		}
-    		**/
 			u = ur;
 			p = pr;
 	    }	
-	    serverLog(LL_LOG,"server processing, memory (after ot): %ld ", zmalloc_used_memory());
+	    serverLog(LL_LOG,"ot process finish");
 	    
 	    //save argv2 to each other client's space
 	    listNode *ln;
@@ -1121,19 +1075,19 @@ void controlAlg(client *c) {
 			
 			loc->redge = createOpEdge(u->ledge->optype,u->ledge->argv1,u->ledge->argv2,u->ledge->oid,locr);
 
-			serverLog(LL_LOG,"***********u->ledge: %d %s %s %s",u->ledge->optype,u->ledge->argv1,u->ledge->argv2,u->ledge->oid);
+			//serverLog(LL_LOG,"***********u->ledge: %d %s %s %s",u->ledge->optype,u->ledge->argv1,u->ledge->argv2,u->ledge->oid);
 
             updateVerticeUfsFromState(loc->content,loc->redge->optype,loc->redge->argv1,loc->redge->argv2,locr); 
             serverLog(LL_LOG,"updaeVerticeState finish (other space)locr->content: %s",locr->content);
-            serverLogArgv(loc->redge);
+            //serverLogArgv(loc->redge);
 
-            serverLog(LL_LOG,"server processing, memory (other spaces): %ld ", zmalloc_used_memory());
+            //serverLog(LL_LOG,"server processing, memory (other spaces): %ld ", zmalloc_used_memory());
         }
 
     	c->flag_ufs = 1;
     	
     	/*rewrite the command argv and transform it to other clients;*/
-    	serverLog(LL_LOG,"server rewrite: oids: %s u->ledge: %d %s %s %s",oids,u->ledge->optype,u->ledge->argv1,u->ledge->argv2,u->ledge->oid);
+    	//serverLog(LL_LOG,"server rewrite: oids: %s u->ledge: %d %s %s %s",oids,u->ledge->optype,u->ledge->argv1,u->ledge->argv2,u->ledge->oid);
 
 		if (c->argc == 6) {
 	    	//union x y oid ctx tag1	        
@@ -1166,11 +1120,11 @@ void controlAlg(client *c) {
 	}	
 }
 
-void unionotCommand(client *c) {
+void unionCommand(client *c) {
     controlAlg(c);
 }
 
-void splitotCommand(client *c) {
+void splitCommand(client *c) {
     controlAlg(c);
 }
 

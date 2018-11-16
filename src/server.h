@@ -1691,7 +1691,7 @@ void serverLog(int level, const char *fmt, ...);
 #endif
 void serverLogCmd(client *c);
 //void serverLogArgv(robj **argv);
-void serverLogArgv(dedge *e);
+void serverLogArgv(dedge *e, dedge *p);
 
 void serverLogRaw(int level, const char *msg);
 void serverLogFromHandler(int level, const char *msg);
@@ -1923,8 +1923,8 @@ void findCommand(client *c);
 void umembersCommand(client *c);
 void testCommand(client *c);
 
-void unionotCommand(client *c);
-void splitotCommand(client *c);
+void unionCommand(client *c);
+void splitCommand(client *c);
 void uinitCommand(client *c);
 
 void authCommand(client *c);

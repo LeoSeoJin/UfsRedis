@@ -153,7 +153,7 @@ int sdscntcmp(char *t1, char *t2) {
 	sdsfreesplitres(oids2,len2);
 	sdsfree(s1);
   	sdsfree(s2);
-  	serverLog(LL_LOG,"sdscntcmp result: %d",result);
+  	//serverLog(LL_LOG,"sdscntcmp result: %d",result);
   	return result;
 }
 
@@ -187,14 +187,14 @@ cverlist *createCVerlist(sds key){
 }
 
 dedge *createOpEdge(int type, char *t1, char *t2, char *t3, vertice *v) {
-    serverLog(LL_LOG,"createOpedge: %d %s %s %s",type,t1,t2,t3);
+    //serverLog(LL_LOG,"createOpedge: %d %s %s %s",type,t1,t2,t3);
 	dedge *e = zmalloc(sizeof(dedge)); 
 	e->optype = type;
 	e->argv1 = t1;
 	e->argv2 = t2;
     e->oid = t3;
 	e->adjv = v;
-	serverLog(LL_LOG,"createOpedge e: %d %s %s %s",e->optype,e->argv1,e->argv2,e->oid);
+	serverLog(LL_LOG,"createOpedge: %d %s %s %s",e->optype,e->argv1,e->argv2,e->oid);
 	return e;
 }
 
@@ -266,6 +266,11 @@ char* cpltClass(char *ufs, char *v) {
     int len;
     sds *elements = sdssplitlen(ufs,strlen(ufs),"/",1,&len);
 	sds result = sdsempty();
+	
+	if (v == NULL) {
+	    result = sdscat(result,"*");
+	    goto r;
+	}
 	char *c;
     for (int i = 0; i < len; i++) {
         if (findSds(elements[i],v)) {
@@ -281,14 +286,15 @@ char* cpltClass(char *ufs, char *v) {
             break;
         } 
     }
-       
+
+r:       
     c = (char*)zmalloc(sdslen(result)+1);
     memcpy(c,result,sdslen(result));
     c[sdslen(result)] = '\0';
     
     sdsfreesplitres(elements,len);
     sdsfree(result);
-    
+  
     return c;
 }
 
@@ -303,19 +309,18 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 	int op1type = op1->optype;
     int op2type = op2->optype;
     
-	serverLog(LL_LOG,"entering ot function");
-	serverLogArgv(op1);
-	serverLogArgv(op2);
+	serverLog(LL_LOG,"entering ot function: ufs: %s",ufs);
+	serverLogArgv(op1,op2);
 
 	if (flag == 2) {
-		serverLog(LL_LOG,"transform UNION operations");
+		//serverLog(LL_LOG,"transform UNION operations");
 		if (op1type == OPTYPE_UNION && op2type == OPTYPE_SPLIT) {
 			//serverLog(LL_LOG,"case: union and split");
 			char *uargv1 = op1->argv1;
 			char *uargv2 = op1->argv2;
 			char *sargv = op2->argv1;
 			
-			serverLog(LL_LOG,"OT process: ufs: %s union %s %s, split %s ", ufs, uargv1, uargv2,sargv);
+			//serverLog(LL_LOG,"OT process(change union): ufs: %s union %s %s, split %s ", ufs, uargv1, uargv2,sargv);
 
             otop1type = OPTYPE_UNION;
             otop2type = OPTYPE_SPLIT;
@@ -640,6 +645,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 								otop2argv1 = sargv;
 					    	}
 						}
+						sdsfreesplitres(elements,len);
 					}
 				}
 			} 
@@ -695,34 +701,83 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					    	} else {
 								otop1argv1 = sargv;
 					    	}
-						}				
+						}
+						sdsfreesplitres(elements,len);				
 			        }
 			   }
 		    } 
+	    } else if (op1type == OPTYPE_SPLIT && op2type == OPTYPE_SPLIT) {
+	        char *s1,*s2;
+			int s1len,s2len;
+			
+			s1 = op1->argv1;
+			s2 = op2->argv1;
+            
+            //serverLog(LL_LOG,"split %s  split %s %s",s1,s2);
+			s1len = strchr(s1,',')==NULL?1:2;
+			s2len = strchr(s2,',')==NULL?1:2;
+			
+			otop1type = OPTYPE_SPLIT;
+			otop2type = OPTYPE_SPLIT;
+			
+			if (s1len == 1 && s2len == 1) {
+			    otop1argv1 = s1;
+			    otop2argv1 = s2;
+			} else if (s1len == 1 && s2len > 1) {
+				int len;
+                sds *elements = sdssplitlen(s2,strlen(s2),",",1,&len);  
+                if (find(elements,s1,len)) otop2argv1 = cpltClass(ufs,s2);
+                else otop2argv1 = s2;
+                otop1argv1 = s1;
+                sdsfreesplitres(elements,len);
+			} else if (s1len > 1 && s2len == 1) {
+				int len;
+                sds *elements = sdssplitlen(s1,strlen(s1),",",1,&len);  
+                if (find(elements,s2,len)) otop1argv1 = cpltClass(ufs,s1);
+                else otop1argv1 = s1;
+                otop2argv1 = s2;
+                sdsfreesplitres(elements,len);
+			} else {
+				int len1,len2;
+                sds *elements1 = sdssplitlen(s1,strlen(s1),",",1,&len1);  
+                sds *elements2 = sdssplitlen(s2,strlen(s2),",",1,&len2); 
+                int i;
+                for (i = 0; i < len1; i++) {
+                    if (find(elements2,elements1[i],len2)) {
+                        otop1argv1 = cpltClass(ufs,NULL);                 
+                        break;
+                    }
+                }
+                if (i == len1) otop1argv1 = s1;
+                otop2argv1 = s2;
+                
+                sdsfreesplitres(elements1,len1);
+                sdsfreesplitres(elements2,len2);
+			}
 	    } else {
 			//no transformation
-			if (op1type==OPTYPE_UNION && op2type==OPTYPE_UNION) {
+			//if (op1type==OPTYPE_UNION && op2type==OPTYPE_UNION) {
 				otop1type = OPTYPE_UNION;
 				otop2type = OPTYPE_UNION;
 				otop1argv1 = op1->argv1;
 				otop1argv2 = op1->argv2;
 				otop2argv1 = op2->argv1;
 				otop2argv2 = op2->argv2;
-			} 
+			//} 
+			/**
 			if (op1type==OPTYPE_SPLIT && op2type==OPTYPE_SPLIT) {
 				otop1type = OPTYPE_SPLIT;
 				otop2type = OPTYPE_SPLIT;
 				otop1argv1 = op1->argv1;
 				otop2argv1 = op2->argv1;
 			}
+			**/
 		}
 	}
 	serverLog(LL_LOG,"ot function finished");
-	//serverLog(LL_LOG,"otop1: %d %s %s otop2: %d %s %s",otop1type,otop1argv1,otop1argv2,otop2type,otop2argv1,otop2argv2);
 	setOp(e1,otop1type,otop1argv1,otop1argv2);
 	setOp(e2,otop2type,otop2argv1,otop2argv2);
-	serverLogArgv(e1);
-	serverLogArgv(e2);
+	serverLogArgv(e1,e2);
 	//serverLog(LL_LOG,"ot successed!!");
 }
 
