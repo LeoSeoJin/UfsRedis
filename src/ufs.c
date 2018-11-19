@@ -786,9 +786,9 @@ void controlAlg(client *c) {
            
             v = locateVertice(space, NULL);
             oids = calculateOids(space->head->value,oids);          
-            serverLog(LL_LOG,"oids: %s ",oids);
+            //serverLog(LL_LOG,"oids: %s ",oids);
             
-            serverLog(LL_LOG,"oids: %s ",oids);
+            //serverLog(LL_LOG,"oids: %s ",oids);
             //robj *argvctx = createObject(OBJ_STRING,sdsnew(locateoids));
 						
 			char buf1[Port_Num+1] = {0};
@@ -842,7 +842,7 @@ void controlAlg(client *c) {
                 //decrRefCount(argv[1]);
                 //decrRefCount(argv[2]);
                     	        
-                serverLog(LL_LOG,"rewriteClientCommandArgument, union, %s %s refcount: %d",v->ledge->oid, oids,argv[0]->refcount);
+                //serverLog(LL_LOG,"rewriteClientCommandArgument, union, %s %s refcount: %d",v->ledge->oid, oids,argv[0]->refcount);
                 serverLogCmd(c);       
 			} else {
                 //split x oid ctx key
@@ -858,7 +858,7 @@ void controlAlg(client *c) {
                 //decrRefCount(argv[1]);
                 //decrRefCount(argv[2]);
                 
-	    		serverLog(LL_LOG,"rewriteClientCommandArgument, split, %s %s refcount: %d",v->ledge->oid, oids,argv[0]->refcount);
+	    		//serverLog(LL_LOG,"rewriteClientCommandArgument, split, %s %s refcount: %d",v->ledge->oid, oids,argv[0]->refcount);
                 serverLogCmd(c);      
 			}
 			sdsfree(oid);

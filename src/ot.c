@@ -120,6 +120,62 @@ int findSds(sds temp, char *s) {
     return result;
 }
 
+int findClass(sds ufs, sds v) {
+    int len;
+    int result = -1;
+    sds *elements = sdssplitlen(ufs,strlen(ufs),"/",1,&len);
+
+    for (int i = 0; i < len; i++) {
+        if (findSds(elements[i], v)) {
+            result = i;
+            break;
+        }
+    }
+    sdsfreesplitres(elements,len);
+    return result;
+}
+
+
+/*Return the complement class of v in corresponding class
+ *ufs is the state of disjoint set
+ */
+char* cpltClass(char *ufs, char *v) {
+    int len;
+    sds *elements = sdssplitlen(ufs,strlen(ufs),"/",1,&len);
+	sds result = sdsempty();
+	
+	if (v == NULL) {
+	    result = sdscat(result,"*");
+	    goto r;
+	}
+	char *c;
+    for (int i = 0; i < len; i++) {
+        if (findSds(elements[i],v)) {
+            elements[i] = sdsDel(elements[i],v);
+            //elements[i] = sdstrim(elements[i],v);
+            if (sdslen(elements[i])==0) {
+    			//serverLog(LL_LOG,"*********************cpltclass of element is NULL");
+    			//sdsfree(result);
+    			result = sdscat(result,"*");
+    		} else {
+            	result = sdscat(result,elements[i]);
+            }
+            break;
+        } 
+    }
+
+r:       
+    c = (char*)zmalloc(sdslen(result)+1);
+    memcpy(c,result,sdslen(result));
+    c[sdslen(result)] = '\0';
+    
+    sdsfreesplitres(elements,len);
+    sdsfree(result);
+  
+    return c;
+}
+
+
 /*Compare contents of two sds, each sds is oids
  *example(s1):6379_0,6380_1
  *same content, return 0
@@ -243,60 +299,6 @@ void removeLastAddEdge(list *space) {
 	}	
 }
 
-int findClass(sds ufs, sds v) {
-    int len;
-    int result = -1;
-    sds *elements = sdssplitlen(ufs,strlen(ufs),"/",1,&len);
-
-    for (int i = 0; i < len; i++) {
-        if (strstr(elements[i], v)) {
-            result = i;
-            break;
-        }
-    }
-    sdsfreesplitres(elements,len);
-    return result;
-}
-
-
-/*Return the complement class of v in corresponding class
- *ufs is the state of disjoint set
- */
-char* cpltClass(char *ufs, char *v) {
-    int len;
-    sds *elements = sdssplitlen(ufs,strlen(ufs),"/",1,&len);
-	sds result = sdsempty();
-	
-	if (v == NULL) {
-	    result = sdscat(result,"*");
-	    goto r;
-	}
-	char *c;
-    for (int i = 0; i < len; i++) {
-        if (findSds(elements[i],v)) {
-            elements[i] = sdsDel(elements[i],v);
-            //elements[i] = sdstrim(elements[i],v);
-            if (sdslen(elements[i])==0) {
-    			//serverLog(LL_LOG,"*********************cpltclass of element is NULL");
-    			//sdsfree(result);
-    			result = sdscat(result,"*");
-    		} else {
-            	result = sdscat(result,elements[i]);
-            }
-            break;
-        } 
-    }
-
-r:       
-    c = (char*)zmalloc(sdslen(result)+1);
-    memcpy(c,result,sdslen(result));
-    c[sdslen(result)] = '\0';
-    
-    sdsfreesplitres(elements,len);
-    sdsfree(result);
-  
-    return c;
-}
 
 void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 	int otop1type = 0;
@@ -738,40 +740,87 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
                 otop2argv1 = s2;
                 sdsfreesplitres(elements,len);
 			} else {
-				int len1,len2;
+				int len1,len2,i;
                 sds *elements1 = sdssplitlen(s1,strlen(s1),",",1,&len1);  
                 sds *elements2 = sdssplitlen(s2,strlen(s2),",",1,&len2); 
-                int i;
+
+                sds overlap = NULL;
+                sds s1nos2 = NULL;
+                sds s2nos1 = NULL;
+                
+                int overlap_num = 0;
+                
                 for (i = 0; i < len1; i++) {
                     if (find(elements2,elements1[i],len2)) {
-                        otop1argv1 = cpltClass(ufs,NULL);                 
-                        break;
+                       if (overlap == NULL) overlap = sdsempty();
+                       else overlap = sdscat(overlap,",");
+                       overlap = sdscat(overlap,elements1[i]);                             
+                       overlap_num++;
+                    } else {
+                       if (s1nos2 == NULL) s1nos2 = sdsempty();
+                       else s1nos2 = sdscat(s1nos2,",");
+                       s1nos2 = sdscat(s1nos2,elements1[i]);
                     }
                 }
-                if (i == len1) otop1argv1 = s1;
-                otop2argv1 = s2;
+                if (overlap_num != 0) { 
+                    for (i = 0; i < len2; i++) {
+                        if (!find(elements1,elements2[i],len1)) {
+                           if (s2nos1 == NULL) s2nos1 = sdsempty();
+                           else s2nos1 = sdscat(s2nos1,",");
+                           s2nos1 = sdscat(s2nos1,elements2[i]);
+                        }
+                    }
+                }
                 
+                if (overlap_num == 0) {
+                    otop1argv1 = s1;
+                    otop2argv1 = s2;
+                } else if (overlap_num == len1 || overlap_num == len2) {
+                    if (len1 == len2) {
+                        otop1argv1 = cpltClass(ufs,NULL);
+                        otop2argv1 = cpltClass(ufs,NULL);
+                    } else {
+                        if (overlap_num == len1) {
+                            otop1argv1 = (char*)zmalloc(sdslen(s2nos1)+1);
+                            strcpy(otop1argv1,s2nos1);
+                            otop2argv1 = s1;
+                        } else {
+                            otop2argv1 = (char*)zmalloc(sdslen(s1nos2)+1);
+                            strcpy(otop2argv1,s1nos2);
+                            otop1argv1 = s2;
+                        }                        
+                    }
+                } else {
+				    int l1,l2;
+                    sds *e1 = sdssplitlen(s1nos2,sdslen(s1nos2),",",1,&l1);  
+                    sds *e2 = sdssplitlen(s2nos1,sdslen(s2nos1),",",1,&l2);
+                    
+                    otop1type = OPTYPE_UNION;
+                    otop2type = OPTYPE_UNION;
+                    otop1argv1 = (char*)zmalloc(sdslen(e1[1])+1);
+                    strcpy(otop1argv1,e1[1]);
+                    otop1argv2 = (char*)zmalloc(sdslen(e2[1])+1);
+                    strcpy(otop1argv2,e2[1]);
+                    otop2argv1 = otop1argv1;
+                    otop2argv2 = otop1argv2;
+                    
+                    sdsfreesplitres(e1,l1);
+                    sdsfreesplitres(e2,l2);
+                }             
+               
+                sdsfree(overlap);
+                sdsfree(s1nos2);
+                sdsfree(s2nos1);
                 sdsfreesplitres(elements1,len1);
                 sdsfreesplitres(elements2,len2);
 			}
 	    } else {
-			//no transformation
-			//if (op1type==OPTYPE_UNION && op2type==OPTYPE_UNION) {
 				otop1type = OPTYPE_UNION;
 				otop2type = OPTYPE_UNION;
 				otop1argv1 = op1->argv1;
 				otop1argv2 = op1->argv2;
 				otop2argv1 = op2->argv1;
 				otop2argv2 = op2->argv2;
-			//} 
-			/**
-			if (op1type==OPTYPE_SPLIT && op2type==OPTYPE_SPLIT) {
-				otop1type = OPTYPE_SPLIT;
-				otop2type = OPTYPE_SPLIT;
-				otop1argv1 = op1->argv1;
-				otop2argv1 = op2->argv1;
-			}
-			**/
 		}
 	}
 	serverLog(LL_LOG,"ot function finished");
@@ -823,7 +872,7 @@ vertice *locateRVertice(vertice* q, sds ctx) {
 	while (q) {
 	    if ((!strcmp(ctx,"init") && !strcmp(t,"init")) || !sdscntcmp(t,ctx)) {
             sdsfree(t);
-            serverLog(LL_LOG,"locateRVertice: return vertex q: %s %s",t,q->content);
+            //serverLog(LL_LOG,"locateRVertice: return vertex q: %s %s",t,q->content);
 		    return q;
 		} else if (q->ledge && strstr(ctx,q->ledge->oid)) {
 		    t = sdscat(t,",");
@@ -835,7 +884,7 @@ vertice *locateRVertice(vertice* q, sds ctx) {
 		    q = q->redge->adjv;
 		} else {
 		    sdsfree(t);
-		    serverLog(LL_LOG,"2D state space does not have the vertice");
+		    //serverLog(LL_LOG,"2D state space does not have the vertice");
 		    return NULL;
 		}
 	} 
