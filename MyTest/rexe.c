@@ -27,9 +27,9 @@ void *p10(void *arg);
 void *p11(void *arg);
 void *p12(void *arg);
 
-char *ip[] = {"127.0.0.1",
-              "127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1",
-              "127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1"};
+char *ip[] = {"139.224.130.80",
+              "47.100.34.153","47.100.34.153","47.100.34.153","47.100.34.153","47.100.34.153","47.100.34.153",
+              "47.99.201.21","47.99.201.21","47.99.201.21","47.99.201.21","47.99.201.21","47.99.201.21"};
 int port[] = {6379,6380,6381,6382,6383,6384,6385,6386,6387,6388,6389,6390,6391};
 void *(*p[])(void*) = {p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12};  
 
@@ -71,7 +71,9 @@ int main(int argc, char*argv[]) {
 	if(conn_server->err) printf("Connection error: %s\n",conn_server->errstr);
 
 	redisReply* reply = NULL;	
-
+	reply = (redisReply*)redisCommand(conn_server,"auth jx062325");
+	freeReplyObject(reply);
+	
 	ufs_id = atoi(argv[5])-1;
 	char command[100] = "uinit ";
 	strcat(command,key_list[key]);

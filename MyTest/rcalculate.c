@@ -4,9 +4,9 @@
 #include <unistd.h>
 #include <hiredis/hiredis.h>
 
-char *ip[] = {"127.0.0.1",
-              "127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1",
-              "127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1"};
+char *ip[] = {"139.224.130.80",
+              "47.100.34.153","47.100.34.153","47.100.34.153","47.100.34.153","47.100.34.153","47.100.34.153",
+              "47.99.201.21","47.99.201.21","47.99.201.21","47.99.201.21","47.99.201.21","47.99.201.21"};
 int port[] = {6379,6380,6381,6382,6383,6384,6385,6386,6387,6388,6389,6390,6391};
 char *key_list[] = {"group1","group2","group3","group4"};
 
@@ -22,13 +22,15 @@ int main(int argc, char *arg[]) {
     double total_time_split = 0;
    	double mem = 0;
    	char mem_double[30];
-    sds ufs_list = sdsempty();
+    sds ufs_list = sdsempty();  	
     int key = atoi(arg[2])-1;
     
 	redisContext *conn_server = redisConnect(ip[0],port[0]);
 	if(conn_server->err) printf("Connection error: %s\n",conn_server->errstr);
 
 	redisReply* reply = NULL;	
+	reply = (redisReply*)redisCommand(conn_server,"auth jx062325");
+	freeReplyObject(reply);
 	    
     char *command_memory = "info memory";
     char *command_time = "info commandstats";
