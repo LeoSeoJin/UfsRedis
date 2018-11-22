@@ -4,15 +4,10 @@
 #include <unistd.h>
 #include <hiredis/hiredis.h>
 
-char *ip[] = {"127.0.0.1",
-              "127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1",
-              "127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1"};
-int port[] = {6379,6380,6381,6382,6383,6384,6385,6386,6387,6388,6389,6390,6391};
-char *key_list[] = {"group1","group2","group3","group4"};
-
+char *ip[] = {"127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1"};
+char *port[] = {"6379","6380","6381","6382","6383","6384","6385","6386"};
 /*
- *arg[1]:client num
- *arg[2]:key of ufs
+ *argv[1]:client num
 */
 int main(int argc, char *arg[]) {
     int client_num = atoi(arg[1]);
@@ -20,187 +15,95 @@ int main(int argc, char *arg[]) {
     sds op = sdsempty();
     double total_time_union = 0;
     double total_time_split = 0;
-   	double mem = 0;
-   	char mem_double[30];
-    sds ufs_list = sdsempty();
-    int key = atoi(arg[2])-1;
-    
-	redisContext *conn_server = redisConnect(ip[0],port[0]);
-	if(conn_server->err) printf("Connection error: %s\n",conn_server->errstr);
 
-	redisReply* reply = NULL;	
-	    
+	redisContext *conn_server = redisConnect(ip[0],atoi(port[0]));
+	if(conn_server->err) printf("Connection error: %s\n",conn_server->errstr);
+   
     char *command_memory = "info memory";
     char *command_time = "info commandstats";
-    sds command_ufs = sdsnew("umembers ");
-    command_ufs = sdscat(command_ufs,key_list[key]);
-    
+
     int totlines,num,t;
-    sds *lines, *argv, *c,temp;
+    sds *lines, *argv, *c;
+    redisReply* reply = NULL;
     
 	reply = (redisReply*)redisCommand(conn_server,command_memory);	
 	lines = sdssplitlen(reply->str,strlen(reply->str),"\n",1,&totlines);
     lines[2] = sdstrim(lines[2]," \t\r\n");	
 	
 	argv = sdssplitlen(lines[2],sdslen(lines[2]),":",1,&num);
-	temp = sdsnew(argv[1]);
-	if (strchr(temp,'M')) {
-	    temp = sdstrim(temp,"M");
-	    mem = atof(temp)-0.8;
-	    memory = sdscat(memory,gcvt(mem,8,mem_double));
-	    memory = sdscat(memory,"M");
-	} else {
-	    memory = sdscat(memory,argv[1]);
-	}
-	sdsfree(temp);
-    //memory = sdscat(memory,argv[1]);
+	memory = sdscat(memory,argv[1]);
+
+    //printf("memory: server: %s\n",memory);
     
 	sdsfreesplitres(lines,totlines);
 	sdsfreesplitres(argv,num);
 
 	freeReplyObject(reply);
-	reply = (redisReply*)redisCommand(conn_server,command_time);	
-	lines = sdssplitlen(reply->str,strlen(reply->str),"\n",1,&totlines);
-    int total_op = 0;
-    
-    for (int j = 0; j < totlines; j++) {
-        if (strstr(lines[j],"union") || strstr(lines[j],"split")) {
-            lines[j] = sdstrim(lines[j]," \t\r\n");
-            argv = sdssplitlen(lines[j],sdslen(lines[j]),",",1,&num);
-            c = sdssplitlen(argv[0],sdslen(argv[0]),"=",1,&t);
-            total_op += atoi(c[1]);
-            
-            sdsfreesplitres(c,t);
-            sdsfreesplitres(argv,num);
-        }
-   	}
-    
-    freeReplyObject(reply);
 	redisFree(conn_server);
-	int op_num,counter,i;
+		
+	for (int i = 1; i <= client_num; i++) {
+    	conn_server = redisConnect(ip[i],atoi(port[i]));
+    	if(conn_server->err) printf("Connection error: %s\n",conn_server->errstr);	
 	
-	int k = 0;
-	int max_thread = 12;
-	for (i = 1; i <= client_num; i++) {
-    	op_num = 0;
-    	counter = 0;
-    	
-    	k = (i <= client_num/2)?i:(max_thread/2+i-client_num/2);
-    		
-    	conn_server = redisConnect(ip[k],port[k]);
-    	if(conn_server->err) printf("Connection error: %s\n",conn_server->errstr);		
-        	
 	    reply = (redisReply*)redisCommand(conn_server,command_memory);	
     	lines = sdssplitlen(reply->str,strlen(reply->str),"\n",1,&totlines);    	
         lines[2] = sdstrim(lines[2]," \t\r\n");
 	    
 	    argv = sdssplitlen(lines[2],sdslen(lines[2]),":",1,&num);
     	memory = sdscat(memory,"+");
-    	
-    	temp = sdsnew(argv[1]);
-	    if (strchr(temp,'M')) {
-    	    temp = sdstrim(temp,"M");
-    	    mem = atof(temp)-0.8;
-    	    memory = sdscat(memory,gcvt(mem,8,mem_double));
-    	    memory = sdscat(memory,"M");
-    	} else {
-    	    memory = sdscat(memory,argv[1]);
-    	}
-    	sdsfree(temp);
-    	//memory = sdscat(memory,argv[1]);
-
+    	memory = sdscat(memory,argv[1]);
+    
+        //printf("client %s: %s\n",port[i],memory);
+   	
     	sdsfreesplitres(lines,totlines);
     	sdsfreesplitres(argv,num); 
         
         freeReplyObject(reply);
 	    reply = (redisReply*)redisCommand(conn_server,command_time);	
     	lines = sdssplitlen(reply->str,strlen(reply->str),"\n",1,&totlines);       	
-    	   	
+    	
     	for (int j = 0; j < totlines; j++) {
     	    if (strstr(lines[j],"union")) {
     	        lines[j] = sdstrim(lines[j]," \t\r\n");
-    	        argv = sdssplitlen(lines[j],sdslen(lines[j]),",",1,&num);   	        
-  	            
-  	            c = sdssplitlen(argv[0],sdslen(argv[0]),"=",1,&t);
-        	    op_num += atoi(c[1]);  
-        	    counter++;	    
+    	        argv = sdssplitlen(lines[j],sdslen(lines[j]),",",1,&num);
     	        if (i == 1) {
     	            op = sdscat(op,"union ");
+    	            c = sdssplitlen(argv[0],sdslen(argv[0]),"=",1,&t);
         	        op = sdscat(op,c[1]);
-        	        op = sdscat(op," ");        	            	            
+        	        op = sdscat(op," ");
+        	        sdsfreesplitres(c,t);    	            
     	        }
-    	        sdsfreesplitres(c,t);
-    	        
     	        c = sdssplitlen(argv[2],sdslen(argv[2]),"=",1,&t);
     	        total_time_union += atof(c[1]);
     	        sdsfreesplitres(c,t);
-    	        
     	        sdsfreesplitres(argv,num);
     	    } else if (strstr(lines[j],"split")){
     	        lines[j] = sdstrim(lines[j]," \t\r\n");
     	        argv = sdssplitlen(lines[j],sdslen(lines[j]),",",1,&num);
-    	        
-  	            c = sdssplitlen(argv[0],sdslen(argv[0]),"=",1,&t);
-        	    op_num += atoi(c[1]);  
-        	    counter++;   	        
     	        if (i == 1) {
     	            op = sdscat(op,"split ");
+    	            c = sdssplitlen(argv[0],sdslen(argv[0]),"=",1,&t);
         	        op = sdscat(op,c[1]);
-        	        op = sdscat(op," ");        	          	            
+        	        op = sdscat(op," ");
+        	        sdsfreesplitres(c,t);    	            
     	        }    	        
-    	        sdsfreesplitres(c,t); 
-    	        
     	        c = sdssplitlen(argv[2],sdslen(argv[2]),"=",1,&t);
     	        total_time_split += atof(c[1]);
     	        sdsfreesplitres(c,t);
-    	        
     	        sdsfreesplitres(argv,num);    	    
     	    } else {
     	        continue;
     	    }
-    	    if (counter == 2) break;
     	}
     	
 	    freeReplyObject(reply);
-	    if (op_num != total_op) {
-	        redisFree(conn_server);
-	        break;
-	    } else {
-    	    reply = (redisReply*)redisCommand(conn_server,command_ufs);
-    	    if (i == 1) {
-    	        ufs_list = sdscat(ufs_list,reply->str);
-    	    } else {
-    	        ufs_list = sdscat(ufs_list,"+");
-    	        ufs_list = sdscat(ufs_list,reply->str);
-    	    }
-    	    freeReplyObject(reply);
-    	    redisFree(conn_server); 
-    	}    	   	  	        
+    	redisFree(conn_server);    	  	        
 	}
 
-    if (i > client_num) {
-        int len,i;
-        sds *elements = sdssplitlen(ufs_list,sdslen(ufs_list),"+",1,&len);
-        //printf("elements: %s\n",ufs_list);
-        printf("1: %s\n",elements[0]);
-        for (i = 0; i < len-1; i++) {
-            printf("%d: %s\n",i+2,elements[i+1]);
-            if(sdscmp(elements[i],elements[i+1])) {
-                printf("Contents of ufs are not the same!\n");
-                break;
-            }
-        }
-        sdsfreesplitres(elements,len);
-        if (i == len-1) {
-            printf("memory: %s\n",memory);
-    	    printf("op: %s\n",op);
-        	printf("average time: union: %lfms split: %lfms\n",total_time_union/client_num/1000,total_time_split/client_num/1000); 
-        }       
-	} else {
-        printf("There still exists client that does not finish processing!\n");	
-	}
-
-    sdsfree(ufs_list);
+	printf("memory: %s\n",memory);
+	printf("op: %s\n",op);
+	printf("average time: union: %lfms split: %lfms\n",(total_time_union/client_num-delay)/1000,(total_time_split/client_num-delay)/1000);
+	
 	sdsfree(memory);
 	sdsfree(op);
 	
