@@ -381,6 +381,58 @@ void serverLog(int level, const char *fmt, ...) {
     serverLogRaw(level,msg);
 }
 
+void serverLogCmdDuration(client *c, long long duration) {
+	int argument_num = c->argc;
+	switch(argument_num){
+		case 1: serverLog(LL_LOG,"cmd: %s client: %d %d %d",
+		(char *)c->argv[0]->ptr, c->replstate, c->flags, c->slave_listening_port); break;
+		case 2: serverLog(LL_LOG,"cmd: %s %s client: %d %d %d ", 
+		(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr,c->replstate, c->flags, c->slave_listening_port); break;
+		case 3: serverLog(LL_LOG,"cmd: %s %s %s client: %d %d %d ", 
+		(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr,c->replstate, c->flags, c->slave_listening_port); break;
+		case 4: serverLog(LL_LOG,"cmd: %s %s %s %s client: %d %d %d ", 
+		                (char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,c->replstate, c->flags, c->slave_listening_port);break;
+		case 5:
+		//*** 
+		{if(!strcmp(c->argv[0]->ptr,"split")) {
+ 				serverLog(LL_LOG,"cmd: %s %s %s duration:%lld", 
+		                (char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, duration);
+                          } else {
+				serverLog(LL_LOG,"cmd: %s %s %s %s %s",
+				(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr);} 
+				break;}
+		/**/
+		/****
+		serverLog(LL_LOG,"cmd: %s %s %s %s %s client: %d %d %d ", (char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,c->replstate, c->flags, c->slave_listening_port);
+				break;
+	    ***/	
+		case 6: 
+		//****
+		{if(!strcmp(c->argv[0]->ptr,"union")) {
+				serverLog(LL_LOG,"cmd: %s %s %s %s duration:%lld", 
+				(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,duration);
+			} else {serverLog(LL_LOG,"cmd: %s %s %s %s %s %s", 
+		(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,(char *)c->argv[5]->ptr); }
+			break;}
+		/***/
+		/***
+
+		serverLog(LL_LOG,"cmd: %s %s %s %s %s %s client: %d %d %d ", 
+		(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,(char *)c->argv[5]->ptr,c->replstate, c->flags, c->slave_listening_port); 
+			break;
+
+	    ***/
+		case 7: serverLog(LL_LOG,"cmd: %s %s %s %s %s %s %s client: %d %d %d ", 
+		(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,(char *)c->argv[5]->ptr,(char *)c->argv[6]->ptr,c->replstate, c->flags, c->slave_listening_port); break;
+		case 8: serverLog(LL_LOG,"cmd: %s %s %s %s %s %s %s %s client: %d %d %d ", 
+		(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,(char *)c->argv[5]->ptr,(char *)c->argv[6]->ptr,(char *)c->argv[7]->ptr,c->replstate, c->flags, c->slave_listening_port); break;
+		case 9: serverLog(LL_LOG,"cmd: %s %s %s %s %s %s %s %s %s client: %d %d %d ", 
+		(char *)c->argv[0]->ptr, (char *)c->argv[1]->ptr, (char *)c->argv[2]->ptr, (char *)c->argv[3]->ptr,(char *)c->argv[4]->ptr,(char *)c->argv[5]->ptr,(char *)c->argv[6]->ptr,(char *)c->argv[7]->ptr,(char *)c->argv[8]->ptr,c->replstate, c->flags, c->slave_listening_port); break;
+		default: serverLog(LL_LOG,"cmd: %s", c->cmd->name);break;
+	}	
+}
+
+
 void serverLogCmd(client *c) {
 	int argument_num = c->argc;
 	switch(argument_num){
@@ -436,11 +488,11 @@ void serverLogArgv(dedge *e, dedge *p) {
        return;
     }
     if (e->optype == 2) {
-       if (p->optype == 1) serverLog(LL_LOG,"cmd(ot): split %s, union %s %s", (char *)e->argv1,(char*)p->argv1,(char*)p->argv2);
-       else serverLog(LL_LOG,"cmd(ot): split %s, split %s", (char *)e->argv1,(char*)p->argv1);
+       if (p->optype == 1) serverLog(LL_LOG,"cmd(ot): split %s  union %s %s", (char *)e->argv1,(char*)p->argv1,(char*)p->argv2);
+       else serverLog(LL_LOG,"cmd(ot): split %s  split %s", (char *)e->argv1,(char*)p->argv1);
     } else if (e->optype == 1) {
-       if (p->optype == 1) serverLog(LL_LOG,"cmd(ot): union %s %s, union %s %s", (char *)e->argv1,(char *)e->argv2,(char*)p->argv1,(char*)p->argv2);
-       else serverLog(LL_LOG,"cmd(ot): union %s %s, split %s", (char *)e->argv1,(char *)e->argv2,(char*)p->argv1);
+       if (p->optype == 1) serverLog(LL_LOG,"cmd(ot): union %s %s  union %s %s", (char *)e->argv1,(char *)e->argv2,(char*)p->argv1,(char*)p->argv2);
+       else serverLog(LL_LOG,"cmd(ot): union %s %s  split %s", (char *)e->argv1,(char *)e->argv2,(char*)p->argv1);
     } 
 }
 
@@ -2227,7 +2279,7 @@ void propagateToMaster(struct redisCommand *cmd, int dbid, robj **argv, int argc
 		feedAppendOnlyFile(cmd,dbid,argv,argc);
     if (flags & PROPAGATE_REPL) {
         //replicationFeedSlaves(server.slaves,dbid,argv,argc
-		serverLog(LL_LOG,"propagateToMaster: replicationFeedMaster");
+		//serverLog(LL_LOG,"propagateToMaster: replicationFeedMaster");
 		replicationFeedMaster(dbid,argv,argc);
 		/**
 		if (argc == 6) 
@@ -2381,16 +2433,32 @@ void call(client *c, int flags) {
     c->flag_ufs = 0;
     
     redisOpArray prev_also_propagate = server.also_propagate; 
-    redisOpArrayInit(&server.also_propagate);
-
+    redisOpArrayInit(&server.also_propagate);  
+    /** 
+    if (server.masterhost == NULL) {
+	    if (!strcmp(c->argv[0]->ptr,"PING") || !strcmp(c->argv[0]->ptr,"REPLCONF") || !strcmp(c->argv[0]->ptr,"AUTH") || !strcmp(c->argv[0]->ptr,"PSYNC")) {
+	        ;
+	    } else {
+	        //serverLog(LL_LOG,"processcommand start %s",c->argv[0]->ptr);
+	        serverLogCmd(c);
+	    }
+	} else {
+	    if (strcmp(c->argv[0]->ptr,"PING")) {
+	        //serverLog(LL_LOG,"processcommand start %s",c->argv[0]->ptr);
+	        serverLogCmd(c);
+	    }
+	}   
+    **/ 
     /* Call the command. */
     dirty = server.dirty;
     start = ustime();
     c->cmd->proc(c);
     duration = ustime()-start;
     dirty = server.dirty-dirty;
+    
+	
     if (dirty < 0) dirty = 0;
-	serverLog(LL_LOG,"call: dirty: %lld, c->flags: %d ", dirty, c->flags);
+	//serverLog(LL_LOG,"call: dirty: %lld, c->flags: %d ", dirty, c->flags);
 
     /* When EVAL is called loading the AOF we don't want commands called
      * from Lua to go into the slowlog or to populate statistics. */
@@ -2418,10 +2486,21 @@ void call(client *c, int flags) {
     if (flags & CMD_CALL_STATS) {
         c->lastcmd->microseconds += duration;
         c->lastcmd->calls++;
+        if (server.masterhost == NULL) {
+	    if (!strcmp(c->argv[0]->ptr,"PING") || !strcmp(c->argv[0]->ptr,"REPLCONF") || !strcmp(c->argv[0]->ptr,"AUTH") || !strcmp(c->argv[0]->ptr,"PSYNC")) {
+	        ;
+	    } else {
+	        //serverLog(LL_LOG,"processcommand start %s",c->argv[0]->ptr);
+	        serverLogCmdDuration(c,duration);
+	    }
+	} else {
+	    if (strcmp(c->argv[0]->ptr,"PING")) {
+	        //serverLog(LL_LOG,"processcommand start %s",c->argv[0]->ptr);
+	        serverLogCmdDuration(c,duration);
+	    }
+	} 
     }
 
-	if ((c->flags & CLIENT_PREVENT_PROP) == CLIENT_PREVENT_PROP)
-		serverLog(LL_LOG,"call: c.flag CLIENT_PREVENT_PROP");
     /* Propagate the command into the AOF and replication link */
     if (flags & CMD_CALL_PROPAGATE &&
         (c->flags & CLIENT_PREVENT_PROP) != CLIENT_PREVENT_PROP)
@@ -2520,8 +2599,7 @@ int processCommand(client *c) {
      * go through checking for replication and QUIT will cause trouble
      * when FORCE_REPLICATION is enabled and would be implemented in
      * a regular command proc. */
-	serverLog(LL_LOG,"processcommand start");
-	serverLogCmd(c);
+	
 	if (!strcasecmp(c->argv[0]->ptr,"quit")) {
         addReply(c,shared.ok);
         c->flags |= CLIENT_CLOSE_AFTER_REPLY;

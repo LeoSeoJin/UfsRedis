@@ -228,6 +228,8 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
          * are queued in the output buffer until the initial SYNC completes),
          * or are already in sync with the master. */
 
+        serverLog(LL_LOG,"Replication to client %d", slave->slave_listening_port);
+        
         /* Add the multi bulk length. */
         addReplyMultiBulkLen(slave,argc);
 
@@ -249,7 +251,7 @@ void replicationFeedExSlave(list *slaves, int dictid, uint64_t id, robj **argv, 
     listNode *ln;
     listIter li;
     int j, len;
-    serverLog(LL_LOG,"call replicationFeedExSlaves");
+    //serverLog(LL_LOG,"call replicationFeedExSlaves");
     /* If the instance is not a top level master, return ASAP: we'll just proxy
      * the stream of data we receive from our master instead, in order to
      * propagate *identical* replication stream. In this way this slave can
@@ -291,7 +293,7 @@ void replicationFeedExSlave(list *slaves, int dictid, uint64_t id, robj **argv, 
         }
     }
 
-	serverLog(LL_LOG,"replicationFeedExSlaves: start addreply");
+	//serverLog(LL_LOG,"replicationFeedExSlaves: start addreply");
     /* Write the command to every slave. */
     listRewind(slaves,&li);
     while((ln = listNext(&li))) {
@@ -307,6 +309,11 @@ void replicationFeedExSlave(list *slaves, int dictid, uint64_t id, robj **argv, 
          * are queued in the output buffer until the initial SYNC completes),
          * or are already in sync with the master. */
 
+        /*add network delay*/
+        //usleep(30000);
+        //sleep(3);
+        
+        serverLog(LL_LOG,"Replication to client %d", slave->slave_listening_port);
         /* Add the multi bulk length. */
         addReplyMultiBulkLen(slave,argc);
 
@@ -320,7 +327,6 @@ void replicationFeedExSlave(list *slaves, int dictid, uint64_t id, robj **argv, 
 
 void replicationFeedMaster(int dictid, robj **argv, int argc) {
 	if (server.master == NULL) return;
-    serverLog(LL_LOG,"replicationFeedMaster: port %d", server.masterport);
     int j,len;
     /* If there aren't slaves, and there is no backlog buffer to populate,
      * we can return ASAP. */
@@ -356,6 +362,12 @@ void replicationFeedMaster(int dictid, robj **argv, int argc) {
     }	
     
 	server.master->flags |= CLIENT_MASTER_FORCE_REPLY;
+	
+    /*add network delay*/
+    //usleep(30000);
+    //sleep(3);
+    serverLog(LL_LOG,"Replication to master: %d",server.masterport); 
+       
 	addReplyMultiBulkLen(server.master,argc);
 	for (j = 0; j < argc; j++)
 		addReplyBulk(server.master,argv[j]);

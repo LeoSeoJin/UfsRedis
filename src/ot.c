@@ -2,7 +2,7 @@
 
 /*list: sds t: char**/
 sds sdsDel(sds list, char *t) {
-    serverLog(LL_LOG,"sdsDel %s from %s",t,list);
+    //serverLog(LL_LOG,"sdsDel %s from %s",t,list);
 	int len,num,i,j,k;
 
 	sds *elements = sdssplitlen(list,sdslen(list),",",1,&len);
@@ -13,7 +13,6 @@ sds sdsDel(sds list, char *t) {
 	        if (!sdscmp(elements[i],del[j])) {
 	            //**
 		        for (k = i; k < len-1; k++) {
-		            //serverLog(LL_LOG,"del %s",elements[k]);
 			        sdsclear(elements[k]);
 			        elements[k] = sdscat(elements[k],elements[k+1]);
 			    }
@@ -24,8 +23,6 @@ sds sdsDel(sds list, char *t) {
 			    len--;
 			    num--;
 			    i--;
-			    /**/
-			    //elements[i] = sdstrim(elements[i],del[j]);
 			    break;
         	}
     	}
@@ -58,9 +55,29 @@ int find(sds *list, char *v, int len) {
 	return result;
 }
 
+int findOids(sds *list, char *v, int len) {
+    int result = 0;
+	for (int i = 0; i < len; i++) {
+	    //serverLog(LL_LOG,"find %s from %s",v,list[i]);
+		if (list[i]) {
+		    if (sdslen(list[i]) == strlen(v)) { 
+		      if (!memcmp(v,list[i],sdslen(list[i]))) {
+		        sdsfree(list[i]);
+		        list[i] = NULL;
+		        result = 1;
+		        break;
+		      }
+	            }
+		}
+		//else serverLog(LL_LOG,"list[i] is NULL");	
+	}
+	//serverLog(LL_LOG,"find result: %d",result);
+	return result;
+}
+
 /*Used for cpltClass function in ot.c, (sds char*)*/
 int findSds(sds temp, char *s) {
-    printf("findSds %s from %s\n",s,temp);
+    //printf("findSds %s from %s\n",s,temp);
     
     int result = 0;
     int i,len,num;
@@ -182,10 +199,14 @@ r:
  *t1: sds t2: sds/char*
  */
 int sdscntcmp(char *t1, char *t2) {
+    /*
     sds s1 = sdsempty();
     sds s2 = sdsempty();
     s1 = sdscat(s1,t1);
     s2 = sdscat(s2,t2);
+    */
+    sds s1 = sdsnew(t1);
+    sds s2 = sdsnew(t2);
     //serverLog(LL_LOG,"sdscntcmp: %s and %s",s1,s2);
     
 	int len1,len2,i,result;
@@ -196,7 +217,7 @@ int sdscntcmp(char *t1, char *t2) {
 		result = 1;
 	} else {
 		for (i = 0; i < len1; i++) {
-			if (!find(oids2, oids1[i], len1)) break; 
+			if (!findOids(oids2, oids1[i], len1)) break; 
 		}
 		if (i == len1) {
 		    result = 0;
@@ -213,6 +234,29 @@ int sdscntcmp(char *t1, char *t2) {
   	return result;
 }
 
+int oidscmp(sds s1, sds s2) {
+	int len1,len2,i,result;
+	                                  
+	sds *oids1 = sdssplitlen(s1,sdslen(s1),",",1,&len1);
+	sds *oids2 = sdssplitlen(s2,sdslen(s2),",",1,&len2);
+	//if (len1 != len2) {
+		//result = 1;
+	//} else {
+		for (i = 0; i < len1; i++) {
+			if (!findOids(oids2, oids1[i], len1)) break; 
+		}
+		if (i == len1) {
+		    result = 0;
+		} else {
+		    result = 1;
+		}
+	//}
+	
+	sdsfreesplitres(oids1,len1);
+	sdsfreesplitres(oids2,len2);
+  	return result;
+}
+
 vertice *createVertice(){
 	vertice *v = zmalloc(sizeof(vertice));
 	//v->oids = sdsnew(oids);
@@ -226,18 +270,18 @@ vertice *createVertice(){
 verlist *createVerlist(int id, sds key) {
 	verlist *list = zmalloc(sizeof(verlist));
 	list->id = id;
-	//list->key = sdsnew(key);
-	list->key = sdsempty();
-	list->key = sdscat(list->key,key);
+	list->key = sdsnew(key);
+	//list->key = sdsempty();
+	//list->key = sdscat(list->key,key);
 	list->vertices = listCreate();
 	return list;
 }
 
 cverlist *createCVerlist(sds key){
 	cverlist *list = zmalloc(sizeof(cverlist));
-	//list->key = sdsnew(key);
-	list->key = sdsempty();
-	list->key = sdscat(list->key,key);
+	list->key = sdsnew(key);
+	//list->key = sdsempty();
+	//list->key = sdscat(list->key,key);
 	list->vertices = listCreate();
 	return list;
 }
@@ -250,7 +294,7 @@ dedge *createOpEdge(int type, char *t1, char *t2, char *t3, vertice *v) {
 	e->argv2 = t2;
     e->oid = t3;
 	e->adjv = v;
-	serverLog(LL_LOG,"createOpedge: %d %s %s %s",e->optype,e->argv1,e->argv2,e->oid);
+	//serverLog(LL_LOG,"createOpedge: %d %s %s %s",e->optype,e->argv1,e->argv2,e->oid);
 	return e;
 }
 
@@ -273,7 +317,7 @@ void removeOpEdge(dedge *edge) {
 	//sdsfree(edge->adjv->content); //content is NULL
 	//zfree(edge->adjv);
 	//zfree(edge);
-	serverLog(LL_LOG,"removeOpEdge finish");
+	//serverLog(LL_LOG,"removeOpEdge finish");
 	
 }
 
@@ -294,7 +338,7 @@ void removeLastAddEdge(list *space) {
 			listDelNode(space,lnl);
 			zfree(v->ledge);
 			v->ledge = NULL; 
-			if (!v->ledge) serverLog(LL_LOG,"removeLastAddEdge finish");
+			//if (!v->ledge) serverLog(LL_LOG,"removeLastAddEdge finish");
 		}	
 	}	
 }
@@ -311,8 +355,9 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 	int op1type = op1->optype;
     int op2type = op2->optype;
     
-	serverLog(LL_LOG,"entering ot function: ufs: %s",ufs);
-	serverLogArgv(op1,op2);
+	//serverLog(LL_LOG,"entering ot function: ufs: %s",ufs);
+	//serverLog(LL_LOG,"************************");
+	//serverLogArgv(op1,op2);
 
 	if (flag == 2) {
 		//serverLog(LL_LOG,"transform UNION operations");
@@ -597,7 +642,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				uargv1 = op1->argv1;
 				uargv2 = op1->argv2;
 				sargv = op2->argv1;
-                serverLog(LL_LOG,"union %s %s split %s  ",uargv1,uargv2,sargv);
+                //serverLog(LL_LOG,"union %s %s split %s  ",uargv1,uargv2,sargv);
 				sargvlen = strchr(sargv,',')==NULL?1:2;
 
 				otop1type = OPTYPE_UNION;
@@ -655,7 +700,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				uargv1 = op2->argv1;
 				uargv2 = op2->argv2;
 				sargv = op1->argv1;
-                serverLog(LL_LOG,"split %s  union %s %s",sargv,uargv1,uargv2);
+                //serverLog(LL_LOG,"split %s  union %s %s",sargv,uargv1,uargv2);
 				sargvlen = strchr(sargv,',')==NULL?1:2;
 
 				otop1type = OPTYPE_SPLIT;
@@ -772,6 +817,8 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
                     }
                 }
                 
+                //serverLog(LL_LOG,"overlap: %s %d s1nos2: %s s2nos1: %s",overlap,overlap_num,s1nos2,s2nos1);
+                
                 if (overlap_num == 0) {
                     otop1argv1 = s1;
                     otop2argv1 = s2;
@@ -797,10 +844,10 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
                     
                     otop1type = OPTYPE_UNION;
                     otop2type = OPTYPE_UNION;
-                    otop1argv1 = (char*)zmalloc(sdslen(e1[1])+1);
-                    strcpy(otop1argv1,e1[1]);
-                    otop1argv2 = (char*)zmalloc(sdslen(e2[1])+1);
-                    strcpy(otop1argv2,e2[1]);
+                    otop1argv1 = (char*)zmalloc(sdslen(e1[0])+1);
+                    strcpy(otop1argv1,e1[0]);
+                    otop1argv2 = (char*)zmalloc(sdslen(e2[0])+1);
+                    strcpy(otop1argv2,e2[0]);
                     otop2argv1 = otop1argv1;
                     otop2argv2 = otop1argv2;
                     
@@ -823,10 +870,11 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				otop2argv2 = op2->argv2;
 		}
 	}
-	serverLog(LL_LOG,"ot function finished");
+	//serverLog(LL_LOG,"ot function finished");
 	setOp(e1,otop1type,otop1argv1,otop1argv2);
 	setOp(e2,otop2type,otop2argv1,otop2argv2);
-	serverLogArgv(e1,e2);
+	//serverLogArgv(e1,e2);
+	//serverLog(LL_LOG,"************************");
 	//serverLog(LL_LOG,"ot successed!!");
 }
 
@@ -866,11 +914,51 @@ sds calculateOids(vertice* v, sds oids){
     return NULL;
 }
 
+//**
 vertice *locateRVertice(vertice* q, sds ctx) {
-    sds t = sdsempty();
-    t = sdscat(t,"init");
+    sds t = sdsnew("init");
 	while (q) {
-	    if ((!strcmp(ctx,"init") && !strcmp(t,"init")) || !sdscntcmp(t,ctx)) {
+		if (sdslen(t) == sdslen(ctx)) {
+		    if (sdslen(t) == 4) {
+		      if (!strcmp(ctx,"init")) {
+		        sdsfree(t);
+		        return q;
+		      } else {
+		        sdsfree(t);
+		        return NULL;
+		      }
+		    } else if (!oidscmp(t,ctx)) {
+                sdsfree(t); 
+        		return q;		    
+            } else {
+                sdsfree(t);
+                return NULL;
+            }
+		} else if (q->ledge && strstr(ctx,q->ledge->oid)) {
+		    t = sdscat(t,",");
+		    t = sdscat(t,q->ledge->oid);
+		    q = q->ledge->adjv;
+		} else if (q->redge && strstr(ctx,q->redge->oid)) {
+		    t = sdscat(t,",");
+		    t = sdscat(t,q->redge->oid);
+		    q = q->redge->adjv;
+		} else {
+		    sdsfree(t);
+		    //serverLog(LL_LOG,"2D state space does not have the vertice");
+		    return NULL;
+		}
+	} 
+	sdsfree(t);
+	//serverLog(LL_LOG,"2D state space does not have the vertice");
+	return NULL;
+}
+/**/
+
+/***
+vertice *locateRVertice(vertice* q, sds ctx) {
+    sds t = sdsnew("init");
+	while (q) {
+	    if ((!strcmp(ctx,"init") && !strcmp(t,"init")) || !oidscmp(t,ctx)) {
             sdsfree(t);
             //serverLog(LL_LOG,"locateRVertice: return vertex q: %s %s",t,q->content);
 		    return q;
@@ -889,10 +977,10 @@ vertice *locateRVertice(vertice* q, sds ctx) {
 		}
 	} 
 	sdsfree(t);
-	serverLog(LL_LOG,"2D state space does not have the vertice");
+	//serverLog(LL_LOG,"2D state space does not have the vertice");
 	return NULL;
 }
-
+**/
 vertice *locateVertice(list* space, sds ctx) {
 	if (listLength(space)) {
 		if (!ctx) {
@@ -916,7 +1004,6 @@ verlist *locateVerlist(int id,sds key) {
 	listRewind(sspacelist->spaces,&li);
     while((ln = listNext(&li))) {
         verlist *s = ln->value;
-        serverLog(LL_LOG,"locateVerlist: s->id: %d, s->key: %s",s->id,s->key);
         if (s->id == id && !sdscmp(s->key,key)) return s;
     }
     return NULL;
@@ -929,7 +1016,7 @@ cverlist *locateCVerlist(sds key) {
 	listRewind(cspacelist->spaces,&li);
     while((ln = listNext(&li))) {
         cverlist *s = ln->value;
-        serverLog(LL_LOG,"locateCVerlist: s->key: %s",s->key);
+        //serverLog(LL_LOG,"locateCVerlist: s->key: %s",s->key);
         if (!sdscmp(s->key,key)) return s;
     }
     return NULL;
@@ -942,7 +1029,7 @@ int existCVerlist(sds key) {
 	listRewind(cspacelist->spaces,&li);
     while((ln = listNext(&li))) {
         cverlist *s = ln->value;
-        serverLog(LL_LOG,"locateCVerlist: s->key: %s",s->key);
+        //serverLog(LL_LOG,"locateCVerlist: s->key: %s",s->key);
         if (!sdscmp(s->key,key)) return 1;
     }
     return 0;
@@ -955,7 +1042,7 @@ list* getSpace(sds key) {
 	listRewind(cspacelist->spaces,&li);
     while((ln = listNext(&li))) {
         cverlist *s = ln->value;
-        serverLog(LL_LOG,"locateCVerlist: s->key: %s",s->key);
+        //serverLog(LL_LOG,"locateCVerlist: s->key: %s",s->key);
         if (!sdscmp(s->key,key)) return s->vertices;
     }
     return NULL;

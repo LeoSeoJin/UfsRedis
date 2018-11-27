@@ -1690,6 +1690,7 @@ void serverLog(int level, const char *fmt, ...)
 void serverLog(int level, const char *fmt, ...);
 #endif
 void serverLogCmd(client *c);
+void serverLogCmdDuration(client *c, long long d);
 //void serverLogArgv(robj **argv);
 void serverLogArgv(dedge *e, dedge *p);
 
@@ -1915,6 +1916,8 @@ void removeAdjEdge(cudGraph *ufs,char *v, sds *list, int len);
 /*new defined sds functions*/
 sds sdsDel(char *list, char *c); 
 int find(sds *list, char *v, int len);
+//sds*list findOids(sds *list, char *v, int len);
+int findOids(sds *list, char *v, int len);
 int findSds(sds list, char *s);
 int sdscntcmp(char *s1, char *s2);
 

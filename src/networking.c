@@ -564,7 +564,7 @@ void addReplyBulkLen(client *c, robj *obj) {
 
 /* Add a Redis Object as a bulk reply */
 void addReplyBulk(client *c, robj *obj) {
-	serverLog(LL_LOG,"addReplyBulk: client_id: %lu", c->id);
+	//serverLog(LL_LOG,"addReplyBulk: client_id: %lu", c->id);
     addReplyBulkLen(c,obj);
     addReply(c,obj);
     addReply(c,shared.crlf);
@@ -1352,7 +1352,7 @@ void processInputBuffer(client *c) {
         } else {
             /* Only reset the client when the command was executed. */
             if (processCommand(c) == C_OK) {
-				serverLog(LL_NOTICE,"processCommand finish");
+				//serverLog(LL_LOG,"processCommand finish %s",c->argv[0]->ptr);
                 if (c->flags & CLIENT_MASTER && !(c->flags & CLIENT_MULTI)) {
                     /* Update the applied replication offset of our master. */
                     c->reploff = c->read_reploff - sdslen(c->querybuf);
@@ -1375,7 +1375,7 @@ void processInputBuffer(client *c) {
 }
 
 void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
-	serverLog(LL_LOG,"readQueryFromClient event start");
+	//serverLog(LL_LOG,"readQueryFromClient event start");
     client *c = (client*) privdata;
     int nread, readlen;
     size_t qblen;
