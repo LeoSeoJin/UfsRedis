@@ -64,13 +64,28 @@ int main(int argc, char *arg[]) {
 	reply = (redisReply*)redisCommand(conn_server,command_time);	
 	lines = sdssplitlen(reply->str,strlen(reply->str),"\n",1,&totlines);
     int total_op = 0;
+    int op_union = 0;
+    int op_split = 0;
+    double avg_time_union = 0;
+    double avg_time_split = 0;
     
     for (int j = 0; j < totlines; j++) {
-        if (strstr(lines[j],"union") || strstr(lines[j],"split")) {
+        if (strstr(lines[j],"union")) {
             lines[j] = sdstrim(lines[j]," \t\r\n");
             argv = sdssplitlen(lines[j],sdslen(lines[j]),",",1,&num);
             c = sdssplitlen(argv[0],sdslen(argv[0]),"=",1,&t);
             total_op += atoi(c[1]);
+            op_union = atoi(c[1]);
+            
+            sdsfreesplitres(c,t);
+            sdsfreesplitres(argv,num);
+        }
+        if (strstr(lines[j],"split")) {
+            lines[j] = sdstrim(lines[j]," \t\r\n");
+            argv = sdssplitlen(lines[j],sdslen(lines[j]),",",1,&num);
+            c = sdssplitlen(argv[0],sdslen(argv[0]),"=",1,&t);
+            total_op += atoi(c[1]);
+            op_split = atoi(c[1]);
             
             sdsfreesplitres(c,t);
             sdsfreesplitres(argv,num);
@@ -194,9 +209,22 @@ int main(int argc, char *arg[]) {
         }
         sdsfreesplitres(elements,len);
         if (i == len-1) {
+            avg_time_union = total_time_union/client_num/1000;
+            avg_time_split = total_time_split/client_num/1000;
+            
             printf("memory: %s\n",memory);
     	    printf("op: %s\n",op);
-        	printf("average time: union: %lfms split: %lfms\n",total_time_union/client_num/1000,total_time_split/client_num/1000); 
+        	printf("average time: union: %.2fms split: %.2fms\n",avg_time_union,avg_time_split);
+        	
+        	FILE *fw = fopen("/home/xue/remote.csv","a+");
+        	if (!fw) {
+        	    printf("ERROR: fail to open file\n");
+        	    return -1;
+        	}
+        	
+		    fprintf(fw,"\t\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%s\t\t\t\n",client_num,total_op,op_union,op_split,avg_time_union,avg_time_split,memory);
+	        fclose(fw);
+        	
         }       
 	} else {
         printf("There still exists client that does not finish processing!\n");	

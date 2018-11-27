@@ -47,6 +47,8 @@ char str[MAX];
 int len = 1;
 char *ufs[ITEM_MAX];
 
+int client_on = 0;
+
 /*arguments:
  *argv[1]: thread_num
  *argv[2]: total command number (union and split)
@@ -71,7 +73,7 @@ int main(int argc, char*argv[]) {
 	if(conn_server->err) printf("Connection error: %s\n",conn_server->errstr);
 
 	redisReply* reply = NULL;	
-
+	
 	ufs_id = atoi(argv[5])-1;
 	char command[100] = "uinit ";
 	strcat(command,key_list[key]);
@@ -113,6 +115,7 @@ int main(int argc, char*argv[]) {
 	        return -1;
 	    }
 	}
+	client_on = thread_num;
 
 	for (i = 0; i < thread_num; i++) 
 	    pthread_join(thread[i],NULL);
@@ -136,10 +139,10 @@ void replaceChar(char *string, char oldChar, char newChar) {
 
 
 void *p1(void *arg) {
-    int i;
-    
+    while (!client_on) {}
+    int i;    
     int client = 1;
-    printf("ip: %s port: %d \n",ip[client],port[client]);
+    printf("%d ip: %s port: %d\n",client_on,ip[client],port[client]);
     
 	redisContext *conn_client = redisConnect(ip[client],port[client]);
 	if(conn_client->err) printf("Connection error: %s \n",conn_client->errstr);
@@ -203,10 +206,10 @@ void *p1(void *arg) {
 }
 
 void *p2(void *arg) {
+    while (!client_on) {}
     int i;
-    
     int client = 2;
-    printf("ip: %s port: %d \n",ip[client],port[client]);
+    printf("%d ip: %s port: %d\n",client_on,ip[client],port[client]);
     
 	redisContext *conn_client = redisConnect(ip[client],port[client]);
 	if(conn_client->err) printf("Connection error: %s \n",conn_client->errstr);
@@ -270,10 +273,10 @@ void *p2(void *arg) {
 }
 
 void *p3(void *arg) {
+    while (!client_on) {}
     int i;
-    
     int client = 3;
-    printf("ip: %s port: %d \n",ip[client],port[client]);
+    printf("%d ip: %s port: %d\n",client_on,ip[client],port[client]);
     
 	redisContext *conn_client = redisConnect(ip[client],port[client]);
 	if(conn_client->err) printf("Connection error: %s \n",conn_client->errstr);
@@ -337,10 +340,10 @@ void *p3(void *arg) {
 }
 
 void *p4(void *arg) {
+    while (!client_on) {}
     int i;
-    
     int client = 4;
-    printf("ip: %s port: %d \n",ip[client],port[client]);
+    printf("%d ip: %s port: %d\n",client_on,ip[client],port[client]);
     
 	redisContext *conn_client = redisConnect(ip[client],port[client]);
 	if(conn_client->err) printf("Connection error: %s \n",conn_client->errstr);
@@ -404,10 +407,10 @@ void *p4(void *arg) {
 }
 
 void *p5(void *arg) {
+    while (!client_on) {}
     int i;
-    
     int client = 5;
-    printf("ip: %s port: %d \n",ip[client],port[client]);
+    printf("%d ip: %s port: %d\n",client_on,ip[client],port[client]);
     
 	redisContext *conn_client = redisConnect(ip[client],port[client]);
 	if(conn_client->err) printf("Connection error: %s \n",conn_client->errstr);
@@ -471,10 +474,10 @@ void *p5(void *arg) {
 }
 
 void *p6(void *arg) {
-    int i;
-    
+    while (!client_on) {}
+    int i; 
     int client = 6;
-    printf("ip: %s port: %d \n",ip[client],port[client]);
+    printf("%d ip: %s port: %d\n",client_on,ip[client],port[client]);
     
 	redisContext *conn_client = redisConnect(ip[client],port[client]);
 	if(conn_client->err) printf("Connection error: %s \n",conn_client->errstr);
@@ -538,10 +541,10 @@ void *p6(void *arg) {
 }
 
 void *p7(void *arg) {
+    while (!client_on) {}
     int i;
-    
     int client = 7;
-    printf("ip: %s port: %d \n",ip[client],port[client]);
+    printf("%d ip: %s port: %d\n",client_on,ip[client],port[client]);
     
 	redisContext *conn_client = redisConnect(ip[client],port[client]);
 	if(conn_client->err) printf("Connection error: %s \n",conn_client->errstr);
@@ -605,10 +608,10 @@ void *p7(void *arg) {
 }
 
 void *p8(void *arg) {
+    while (!client_on) {}
     int i;
-    
     int client = 8;
-    printf("ip: %s port: %d \n",ip[client],port[client]);
+    printf("%d ip: %s port: %d\n",client_on,ip[client],port[client]);
     
 	redisContext *conn_client = redisConnect(ip[client],port[client]);
 	if(conn_client->err) printf("Connection error: %s \n",conn_client->errstr);
@@ -672,10 +675,10 @@ void *p8(void *arg) {
 }
 
 void *p9(void *arg) {
-    int i;
-    
+    while (!client_on) {}
+    int i;    
     int client = 9;
-    printf("ip: %s port: %d \n",ip[client],port[client]);
+    printf("%d ip: %s port: %d\n",client_on,ip[client],port[client]);
     
 	redisContext *conn_client = redisConnect(ip[client],port[client]);
 	if(conn_client->err) printf("Connection error: %s \n",conn_client->errstr);
@@ -739,10 +742,10 @@ void *p9(void *arg) {
 }
 
 void *p10(void *arg) {
-    int i;
-    
+    while (!client_on) {}
+    int i; 
     int client = 10;
-    printf("ip: %s port: %d \n",ip[client],port[client]);
+    printf("%d ip: %s port: %d\n",client_on,ip[client],port[client]);
     
 	redisContext *conn_client = redisConnect(ip[client],port[client]);
 	if(conn_client->err) printf("Connection error: %s \n",conn_client->errstr);
@@ -806,10 +809,10 @@ void *p10(void *arg) {
 }
 
 void *p11(void *arg) {
+    while (!client_on) {}
     int i;
-    
     int client = 11;
-    printf("ip: %s port: %d \n",ip[client],port[client]);
+    printf("%d ip: %s port: %d\n",client_on,ip[client],port[client]);
     
 	redisContext *conn_client = redisConnect(ip[client],port[client]);
 	if(conn_client->err) printf("Connection error: %s \n",conn_client->errstr);
@@ -873,10 +876,10 @@ void *p11(void *arg) {
 }
 
 void *p12(void *arg) {
+    while (!client_on) {}
     int i;
-    
     int client = 12;
-    printf("ip: %s port: %d \n",ip[client],port[client]);
+    printf("%d ip: %s port: %d\n",client_on,ip[client],port[client]);
     
 	redisContext *conn_client = redisConnect(ip[client],port[client]);
 	if(conn_client->err) printf("Connection error: %s \n",conn_client->errstr);
@@ -938,15 +941,4 @@ void *p12(void *arg) {
 		
 	return NULL;
 }
-//void *p1(void *arg){}
-//void *p2(void *arg){}
-//void *p3(void *arg){}
-//void *p4(void *arg){}
-//void *p5(void *arg){}
-//void *p6(void *arg){}
-//void *p7(void *arg){}
-//void *p8(void *arg){}
-//void *p9(void *arg){}
-//void *p10(void *arg){}
-//void *p11(void *arg){}
-//void *p12(void *arg){}
+
