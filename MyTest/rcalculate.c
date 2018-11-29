@@ -222,7 +222,7 @@ int main(int argc, char *arg[]) {
         	    return -1;
         	}
         	
-		    fprintf(fw,"\t\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%s\t\t\t\n",client_num,total_op,op_union,op_split,avg_time_union,avg_time_split,memory);
+		    fprintf(fw,"\t\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%s\n",client_num,total_op,op_union,op_split,avg_time_union,avg_time_split,memory);
 	        fclose(fw);
         	
         }       
