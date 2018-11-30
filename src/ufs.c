@@ -526,7 +526,7 @@ void updateVerticeUfs(cudGraph *ufs, vertice *v) {
 
 		//bubbleSort(ufs,elements,len);
 		//insertSort(ufs,elements,len);
-		quickSort(ufs,elements,0,len-1);
+		//quickSort(ufs,elements,0,len-1);
 		sdsclear(list);
 
 		for (j = 0; j < len; j++) {

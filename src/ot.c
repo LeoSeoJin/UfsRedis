@@ -914,6 +914,22 @@ sds calculateOids(vertice* v, sds oids){
     return NULL;
 }
 
+int findOid(sds list, char *s) {
+    int result = 0;
+    
+    //sds list = sdsnew(temp);
+    //list = sdscat(list,",");
+	        
+    sds t = sdsnew(",");
+    t = sdscat(t,s);
+    //t = sdscat(t,",");
+    if (strstr(list,t)) result = 1;
+            
+    sdsfree(t);  
+    //sdsfree(list);
+    return result;
+}
+
 //**
 vertice *locateRVertice(vertice* q, sds ctx) {
     sds t = sdsnew("init");
@@ -934,14 +950,16 @@ vertice *locateRVertice(vertice* q, sds ctx) {
                 sdsfree(t);
                 return NULL;
             }
-		} else if (q->ledge && strstr(ctx,q->ledge->oid)) {
+		} else if (q->ledge && findOid(ctx,q->ledge->oid)) {
 		    t = sdscat(t,",");
 		    t = sdscat(t,q->ledge->oid);
 		    q = q->ledge->adjv;
-		} else if (q->redge && strstr(ctx,q->redge->oid)) {
+	            //serverLog(LL_LOG,"%s",t);
+		} else if (q->redge && findOid(ctx,q->redge->oid)) {
 		    t = sdscat(t,",");
 		    t = sdscat(t,q->redge->oid);
 		    q = q->redge->adjv;
+	            //serverLog(LL_LOG,"%s",t);
 		} else {
 		    sdsfree(t);
 		    //serverLog(LL_LOG,"2D state space does not have the vertice");
