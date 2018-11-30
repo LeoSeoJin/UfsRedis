@@ -38,6 +38,7 @@ char *initial_content[] = {"22,30/47,80/225,890/12,34","12,37,78/257,789,120/36/
 char *key_list[] = {"group1","group2","group3","group4"};
 
 int client_on = 0;
+char *ufsid;
 char *total_op;
 char *upercent;
 
@@ -52,6 +53,7 @@ int main(int argc, char*argv[]) {
     int thread_num = atoi(argv[1]);
     total_op = argv[2];
     upercent = argv[3];
+    ufsid = argv[4];
     int ufs_id = atoi(argv[4])-1;
     int key = atoi(argv[5])-1;
       
@@ -62,7 +64,7 @@ int main(int argc, char*argv[]) {
 	redisContext *conn_server = redisConnect(ip[0],port[0]);
 	if(conn_server->err) printf("Connection error: %s\n",conn_server->errstr);
 
-	redisReply* reply = NULL;	
+	redisReply* reply = NULL;
 		
 	char command[100] = "uinit ";
 	strcat(command,key_list[key]);
@@ -73,6 +75,8 @@ int main(int argc, char*argv[]) {
 	
 	freeReplyObject(reply);
 	redisFree(conn_server);
+	
+	usleep(80000); //uinit is the first command of all clients
 		   
     int k = 0;
     int max_thread = 12;
@@ -115,6 +119,8 @@ void *p1(void *arg) {
 	FILE *fr;
     char filename[100] = "/home/xue/workload/";
     
+    strcat(filename,ufsid);
+    strcat(filename,"/");
     strcat(filename,total_op);
     strcat(filename,"/");
     strcat(filename,upercent);
@@ -158,7 +164,8 @@ void *p2(void *arg) {
 	FILE *fr;
 
     char filename[100] = "/home/xue/workload/";
-
+    strcat(filename,ufsid);
+    strcat(filename,"/");
     strcat(filename,total_op);
     strcat(filename,"/");
     strcat(filename,upercent);
@@ -201,6 +208,8 @@ void *p3(void *arg) {
     	
 	FILE *fr;
     char filename[100] = "/home/xue/workload/";
+    strcat(filename,ufsid);
+    strcat(filename,"/");    
     strcat(filename,total_op);
     strcat(filename,"/");
     strcat(filename,upercent);
@@ -243,6 +252,8 @@ void *p4(void *arg) {
     	
 	FILE *fr;
     char filename[100] = "/home/xue/workload/";
+    strcat(filename,ufsid);
+    strcat(filename,"/");    
     strcat(filename,total_op);
     strcat(filename,"/");
     strcat(filename,upercent);
@@ -285,6 +296,8 @@ void *p5(void *arg) {
     	
 	FILE *fr;
     char filename[100] = "/home/xue/workload/";
+    strcat(filename,ufsid);
+    strcat(filename,"/");    
     strcat(filename,total_op);
     strcat(filename,"/");
     strcat(filename,upercent);
@@ -327,6 +340,8 @@ void *p6(void *arg) {
     	
 	FILE *fr;
     char filename[100] = "/home/xue/workload/";
+    strcat(filename,ufsid);
+    strcat(filename,"/");    
     strcat(filename,total_op);
     strcat(filename,"/");
     strcat(filename,upercent);
@@ -369,6 +384,8 @@ void *p7(void *arg) {
     	
 	FILE *fr;
     char filename[100] = "/home/xue/workload/";
+    strcat(filename,ufsid);
+    strcat(filename,"/");    
     strcat(filename,total_op);
     strcat(filename,"/");
     strcat(filename,upercent);
@@ -411,6 +428,8 @@ void *p8(void *arg) {
     	
 	FILE *fr;
     char filename[100] = "/home/xue/workload/";
+    strcat(filename,ufsid);
+    strcat(filename,"/");    
     strcat(filename,total_op);
     strcat(filename,"/");
     strcat(filename,upercent);
@@ -453,6 +472,8 @@ void *p9(void *arg) {
     	
 	FILE *fr;
     char filename[100] = "/home/xue/workload/";
+    strcat(filename,ufsid);
+    strcat(filename,"/");    
     strcat(filename,total_op);
     strcat(filename,"/");
     strcat(filename,upercent);
@@ -495,6 +516,8 @@ void *p10(void *arg) {
     	
 	FILE *fr;
     char filename[100] = "/home/xue/workload/";
+    strcat(filename,ufsid);
+    strcat(filename,"/");    
     strcat(filename,total_op);
     strcat(filename,"/");
     strcat(filename,upercent);
@@ -537,6 +560,8 @@ void *p11(void *arg) {
     	
 	FILE *fr;
     char filename[100] = "/home/xue/workload/";
+    strcat(filename,ufsid);
+    strcat(filename,"/");    
     strcat(filename,total_op);
     strcat(filename,"/");
     strcat(filename,upercent);
@@ -579,6 +604,8 @@ void *p12(void *arg) {
     	
 	FILE *fr;
     char filename[100] = "/home/xue/workload/";
+    strcat(filename,ufsid);
+    strcat(filename,"/");    
     strcat(filename,total_op);
     strcat(filename,"/");
     strcat(filename,upercent);

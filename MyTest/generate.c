@@ -3,9 +3,6 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/time.h>
-#include <hiredis/hiredis.h>
-#include <pthread.h>
 
 #define ELEMENTS 50
 #define OP_UNION 0
@@ -14,11 +11,8 @@
 #define ITEM_MAX 100
 
 void replaceChar(char *string, char oldChar, char newChar);
-void generate(char *total, char *upercent, int client);
+void generate(char *id, char *total, char *upercent, int client);
 
-char *ip[] = {"127.0.0.1",
-              "127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1",
-              "127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1","127.0.0.1"};
 char *port[] = {"6379","6380","6381","6382","6383","6384","6385","6386","6387","6388","6389","6390","6391"}; 
 
 int total_op = 0;
@@ -78,7 +72,7 @@ int main(int argc, char*argv[]) {
     int max_thread = 12;
 	for (i = 0; i < thread_num; i++) {	    
 	    k = (i < thread_num/2)?i:(max_thread/2+i-thread_num/2);
-	    generate(argv[2],argv[3],k+1);
+	    generate(argv[4],argv[2],argv[3],k+1);
 	    sleep(1);	   
 	}
 	
@@ -99,13 +93,15 @@ void replaceChar(char *string, char oldChar, char newChar) {
 }
 
 
-void generate(char *total, char *upercent, int client) {
+void generate(char *id, char *total, char *upercent, int client) {
     int i;    
-    printf("ip: %s port: %s\n",ip[client],port[client]);
+    printf("port: %s\n",port[client]);
     
 	FILE *fw;
     char filename[50] = "/home/xue/workload/";
     
+    strcat(filename,id);
+    strcat(filename,"/");
     strcat(filename,total);
     strcat(filename,"/");
     strcat(filename,upercent);
