@@ -10,7 +10,7 @@
 #define ELEMENTS 50
 #define OP_UNION 0
 #define OP_SPLIT 1
-#define MAX 100
+#define MAX 1000
 #define ITEM_MAX 100
 
 void *p1(void *arg);
@@ -34,7 +34,6 @@ int port[] = {6379,6380,6381,6382,6383,6384,6385,6386,6387,6388,6389,6390,6391};
 char *strport[] = {"6379","6380","6381","6382","6383","6384","6385","6386","6387","6388","6389","6390","6391"};
 void *(*p[])(void*) = {p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12};  
 
-char *initial_content[] = {"22,30/47,80/225,890/12,34","12,37,78/257,789,120/36/240,55,556/90,2"};
 char *key_list[] = {"group1","group2","group3","group4"};
 
 int client_on = 0;
@@ -54,7 +53,7 @@ int main(int argc, char*argv[]) {
     total_op = argv[2];
     upercent = argv[3];
     ufsid = argv[4];
-    int ufs_id = atoi(argv[4])-1;
+    int ufs_id = atoi(argv[4]);
     int key = atoi(argv[5])-1;
       
 	pthread_t thread[thread_num];
@@ -67,11 +66,27 @@ int main(int argc, char*argv[]) {
 	redisReply* reply = NULL;	
 	reply = (redisReply*)redisCommand(conn_server,"auth jx062325");
 	freeReplyObject(reply);
-		
+
+	FILE *fr = fopen("/home/xue/ufs.txt","r+");
+	if (!fr) {
+	    printf("ERROR: fail to open file\n");
+	    return -1;
+	}
+	
+	char str[MAX];
+	i = 1;
+	while (!feof(fr)) {
+	     fgets(str,MAX,fr); 
+	     if (i == ufs_id) break; 
+	     i++;  
+	}
+	fclose(fr);	
+	str[strlen(str)-1] = '\0';	
+			
 	char command[100] = "uinit ";
 	strcat(command,key_list[key]);
 	strcat(command," ");
-	strcat(command,initial_content[ufs_id]);
+    strcat(command,str);
 		
 	reply = (redisReply*)redisCommand(conn_server,command);
 	

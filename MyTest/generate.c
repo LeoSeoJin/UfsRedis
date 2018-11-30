@@ -7,7 +7,7 @@
 #define ELEMENTS 50
 #define OP_UNION 0
 #define OP_SPLIT 1
-#define MAX 100
+#define MAX 1000
 #define ITEM_MAX 100
 
 void replaceChar(char *string, char oldChar, char newChar);
@@ -19,7 +19,7 @@ int total_op = 0;
 int union_op = 0;
 int split_op = 0;
 
-char *initial_content[] = {"22,30/47,80/225,890/12,34","12,37,78/257,789,120/36/240,55,556/90,2"};
+//char *initial_content[] = {"22,30/47,80/225,890/12,34","12,37,78/257,789,120/36/240,55,556/90,2","red,yellow/blue,gray,black/scarlet/green,pink/white,purple"};
 
 char *key_list[] = {"group1","group2","group3","group4"};
 int key = 0;
@@ -39,7 +39,7 @@ int main(int argc, char*argv[]) {
     int thread_num = atoi(argv[1]);
     total_op = atoi(argv[2]);
     double union_percent = atof(argv[3]);
-    int ufs_id = atoi(argv[4])-1;
+    int ufs_id = atoi(argv[4]);
     key = atoi(argv[5])-1;
 
     union_op = total_op*union_percent;
@@ -51,7 +51,23 @@ int main(int argc, char*argv[]) {
 		
 	char *r;
 	char str[MAX];
-	strcpy(str,initial_content[ufs_id]);		
+	
+	FILE *fr = fopen("/home/xue/ufs.txt","r+");
+	if (!fr) {
+	    printf("ERROR: fail to open file\n");
+	    return -1;
+	}
+	
+	i = 1;
+	while (!feof(fr)) {
+	     fgets(str,MAX,fr); 
+	     if (i == ufs_id) break; 
+	     i++;  
+	}
+	fclose(fr);
+	
+	str[strlen(str)-1] = '\0';	
+		
     replaceChar(str,'/',',');
 	for (i = 0; i < strlen(str); i++)
 		if (str[i] == ',') len++;
@@ -111,7 +127,7 @@ void generate(char *id, char *total, char *upercent, int client) {
     
     fw = fopen(filename,"w+");
 	if(!fw) {
-		printf("ERROR: fail to open file\n");
+		printf("ERROR: fail to open file %s\n",filename);
 		return;
 	}
 	    	
