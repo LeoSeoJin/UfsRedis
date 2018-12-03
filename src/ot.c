@@ -55,53 +55,70 @@ int find(sds *list, char *v, int len) {
 	return result;
 }
 
-int findOids(sds *list, char *v, int len) {
+/*
+ *find a sds(element/oid) from sds*(eqc/oids) 
+ *return 1(exist)
+*/
+int sdslistsds(sds *list, char *v, int len) {
     int result = 0;
 	for (int i = 0; i < len; i++) {
 	    //serverLog(LL_LOG,"find %s from %s",v,list[i]);
 		if (list[i]) {
-		    if (sdslen(list[i]) == strlen(v)) { 
+		    if (sdslen(list[i]) == sdslen(v)) { 
 		      if (!memcmp(v,list[i],sdslen(list[i]))) {
 		        sdsfree(list[i]);
 		        list[i] = NULL;
 		        result = 1;
 		        break;
 		      }
-	            }
+	        }
 		}
-		//else serverLog(LL_LOG,"list[i] is NULL");	
 	}
-	//serverLog(LL_LOG,"find result: %d",result);
 	return result;
 }
 
-/*Used for cpltClass function in ot.c, (sds char*)*/
 int findSds(sds temp, char *s) {
-    //printf("findSds %s from %s\n",s,temp);
-    
     int result = 0;
     int i,len,num;
-    char *uf,*r;
+    //char *uf,*r;
     
     len = strchr(s,',')?1:0;
     num = strchr(temp,',')?1:0;
-
+    
+    /**
+    int len_s = strlen(s);
     if (len == 1) {
-        uf = (char*)zmalloc(strlen(s)+1);
+        uf = (char*)zmalloc(len_s+1);
 	    strcpy(uf,s);
-        for (i = 0; i < (int)strlen(uf); i++)
+        for (i = 0; i < len_s; i++)
 		    if (uf[i] == ',') len++;
 	}
-    
+    **/
+
 	if (len != 0) {
 	    if (num != 0){
-	        sds list = sdsempty();
-	        list = sdscat(list,",");
+	        sds list = sdsnew(",");
 	        list = sdscat(list,temp);
 	        list = sdscat(list,",");
 	        
-	        i = 0;
-	        r = strtok(uf,",");
+            //i = 0;
+	        //r = strtok(uf,",");
+            i = 0;
+            char r[10] = "";
+            while(s[i] != '\0') {
+                if (s[i] == ',') break;
+                else r[i] = s[i];
+                i++;
+            }
+            r[i] = '\0';
+
+            sds t = sdsnew(",");
+            t = sdscat(t,r);
+            t = sdscat(t,",");
+            if (strstr(list,t)) result = 1;
+            sdsfree(t);           
+            sdsfree(list);
+            /**
 	        while (i<len && r != NULL) {
                 sds t = sdsempty();
                 t = sdscat(t,",");
@@ -113,19 +130,18 @@ int findSds(sds temp, char *s) {
     		    i++;
 	    	}
 	    	sdsfree(list);
+            **/
     	}
-		zfree(uf);
+		//zfree(uf);
 	} else {
 	    if (num == 0) {
 	        if (!strcmp(temp,s)) result = 1;
 	    }else {
-   	        sds list = sdsempty();
-	        list = sdscat(list,",");
+	        sds list = sdsnew(",");
 	        list = sdscat(list,temp);
 	        list = sdscat(list,",");
 	        
-    	    sds t = sdsempty();
-    	    t = sdscat(t,",");
+    	    sds t = sdsnew(",");
     	    t = sdscat(t,s);
     	    t = sdscat(t,",");
             if (strstr(list,t)) result = 1;
@@ -137,10 +153,11 @@ int findSds(sds temp, char *s) {
     return result;
 }
 
-int findClass(sds ufs, sds v) {
+int findClass(sds ufs, char *v, int len_ufs) {
     int len;
     int result = -1;
-    sds *elements = sdssplitlen(ufs,strlen(ufs),"/",1,&len);
+    if (!len_ufs) len_ufs = strlen(ufs);
+    sds *elements = sdssplitlen(ufs,len_ufs,"/",1,&len);
 
     for (int i = 0; i < len; i++) {
         if (findSds(elements[i], v)) {
@@ -156,9 +173,10 @@ int findClass(sds ufs, sds v) {
 /*Return the complement class of v in corresponding class
  *ufs is the state of disjoint set
  */
-char* cpltClass(char *ufs, char *v) {
+char* cpltClass(char *ufs, char *v, int len_ufs) {
     int len;
-    sds *elements = sdssplitlen(ufs,strlen(ufs),"/",1,&len);
+    if (v && !len_ufs) len_ufs = strlen(ufs);
+    sds *elements = sdssplitlen(ufs,len_ufs,"/",1,&len);
 	sds result = sdsempty();
 	
 	if (v == NULL) {
@@ -192,32 +210,63 @@ r:
     return c;
 }
 
+int countstr(char *s, char t) {
+    int result = 0;
+    int i = 0;
+    while (s[i] != '\0') {
+        if (s[i] == t) result++;
+        i++;
+    }
+    return result;
+}
 
-/*Compare contents of two sds, each sds is oids
- *example(s1):6379_0,6380_1
+int eqccmp(char *s1, char *s2) {
+	int result;
+	int elements_num_s1 = countstr(s1,',')+1;
+    int elements_num_s2 = countstr(s2,',')+1;
+
+    if (elements_num_s1 != elements_num_s2) {
+        result = 1;
+    } else if (elements_num_s1 == 1) {
+        if (!strcmp(s1,s2)) result = 0;
+        else result = 1;
+    } else {
+        int len1,len2,i;
+    	sds *oids1 = sdssplitlen(s1,strlen(s1),",",1,&len1);
+    	sds *oids2 = sdssplitlen(s2,strlen(s2),",",1,&len2);
+       	if (len1 != len2) {
+    		result = 1;
+    	} else {
+    		for (i = 0; i < len1; i++) {
+    			if (!sdslistsds(oids2, oids1[i], len1)) break; 
+    		}
+    		if (i == len1) {
+    		    result = 0;
+    		} else {
+    		    result = 1;
+    		}
+    	}
+	
+    	sdsfreesplitres(oids1,len1);
+    	sdsfreesplitres(oids2,len2);
+    }
+  	return result;
+}
+
+/*Compare contents of two equivalent class
  *same content, return 0
- *t1: sds t2: sds/char*
  */
-int sdscntcmp(char *t1, char *t2) {
-    /*
-    sds s1 = sdsempty();
-    sds s2 = sdsempty();
-    s1 = sdscat(s1,t1);
-    s2 = sdscat(s2,t2);
-    */
-    sds s1 = sdsnew(t1);
-    sds s2 = sdsnew(t2);
-    //serverLog(LL_LOG,"sdscntcmp: %s and %s",s1,s2);
-    
+/***
+int eqccmp(char *s1, char *s2) {
 	int len1,len2,i,result;
 	                                  
-	sds *oids1 = sdssplitlen(s1,sdslen(s1),",",1,&len1);
-	sds *oids2 = sdssplitlen(s2,sdslen(s2),",",1,&len2);
+	sds *oids1 = sdssplitlen(s1,strlen(s1),",",1,&len1);
+	sds *oids2 = sdssplitlen(s2,strlen(s2),",",1,&len2);
 	if (len1 != len2) {
 		result = 1;
 	} else {
 		for (i = 0; i < len1; i++) {
-			if (!findOids(oids2, oids1[i], len1)) break; 
+			if (!sdslistsds(oids2, oids1[i], len1)) break; 
 		}
 		if (i == len1) {
 		    result = 0;
@@ -228,11 +277,9 @@ int sdscntcmp(char *t1, char *t2) {
 	
 	sdsfreesplitres(oids1,len1);
 	sdsfreesplitres(oids2,len2);
-	sdsfree(s1);
-  	sdsfree(s2);
-  	//serverLog(LL_LOG,"sdscntcmp result: %d",result);
   	return result;
 }
+***/
 
 int oidscmp(sds s1, sds s2) {
 	int len1,len2,i,result;
@@ -243,7 +290,7 @@ int oidscmp(sds s1, sds s2) {
 		//result = 1;
 	//} else {
 		for (i = 0; i < len1; i++) {
-			if (!findOids(oids2, oids1[i], len1)) break; 
+			if (!sdslistsds(oids2, oids1[i], len1)) break; 
 		}
 		if (i == len1) {
 		    result = 0;
@@ -345,6 +392,7 @@ void removeLastAddEdge(list *space) {
 
 
 void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
+    //int len_ufs = strlen(ufs);
 	int otop1type = 0;
 	int otop2type = 0;
 	char *otop1argv1 = NULL;
@@ -383,11 +431,11 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					otop1argv1 = uargv1;
 					otop1argv2 = uargv2;					
 				} else if (!strcmp(uargv1,sargv)) {
-					otop1argv1 = cpltClass(ufs,sargv);
+					otop1argv1 = cpltClass(ufs,sargv,0);
 					otop1argv2 = uargv2;
 				} else if (!strcmp(uargv2,sargv)) {
 					otop1argv1 = uargv1;
-					otop1argv2 = cpltClass(ufs,sargv);
+					otop1argv2 = cpltClass(ufs,sargv,0);
 				} else {
 					otop1argv1 = uargv1;
 					otop1argv2 = uargv2;	
@@ -400,13 +448,13 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					//b in a
 					if (find(elements,sargv,len)) {
 					    //c in a
-						otop1argv1 = cpltClass(ufs,sargv);
+						otop1argv1 = cpltClass(ufs,sargv,0);
 						if (strcmp(uargv2,sargv)) {
 						    //b != c
 							otop1argv2 = uargv2;
 						} else {
 						    //b == c 
-						    otop1argv2 = cpltClass(ufs,sargv);
+						    otop1argv2 = cpltClass(ufs,sargv,0);
 						}
 					} else {
 					    //c not in a
@@ -417,13 +465,13 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				    //b not in a
 					if (find(elements,sargv,len)) {
 					    //c in a
-						otop1argv1 = cpltClass(ufs,sargv);
+						otop1argv1 = cpltClass(ufs,sargv,0);
 					} else {
 					    //c not in a
 						otop1argv1 = uargv1;
 					}
 					if (!strcmp(uargv2,sargv)){
-						otop1argv2 = cpltClass(ufs,sargv);
+						otop1argv2 = cpltClass(ufs,sargv,0);
 					} else {
 						otop1argv2 = uargv2;
 					}
@@ -435,11 +483,11 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				sds *elements = sdssplitlen(uargv2,strlen(uargv2),",",1,&len);
 				if (find(elements,uargv1,len)) {
 					if (find(elements,sargv,len)) {
-						otop1argv2 = cpltClass(ufs,sargv);
+						otop1argv2 = cpltClass(ufs,sargv,0);
 						if (strcmp(uargv1,sargv)) {
 							otop1argv1 = uargv1;
 						} else {
-							otop1argv1 = cpltClass(ufs,sargv);
+							otop1argv1 = cpltClass(ufs,sargv,0);
 						}
 					} else {
 						otop1argv1 = uargv1;
@@ -447,12 +495,12 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					}
 				} else {
 					if (find(elements,sargv,len)) {
-						otop1argv2 = cpltClass(ufs,sargv);
+						otop1argv2 = cpltClass(ufs,sargv,0);
 					} else {
 						otop1argv2 = uargv2;
 					}
 					if (!strcmp(uargv1,sargv)){
-						otop1argv1 = cpltClass(ufs,sargv);
+						otop1argv1 = cpltClass(ufs,sargv,0);
 					} else {
 						otop1argv1 = uargv1;
 					}
@@ -460,14 +508,15 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				sdsfreesplitres(elements,len);
 			}
 			if (uargv1len > 1 && uargv2len > 1) {
-				if (!sdscntcmp(uargv1,uargv2)) { 
+				if (!eqccmp(uargv1,uargv2)) { 
 				    //a and b are sets, a == b 
 					int len;
 					sds *elements = sdssplitlen(uargv1,strlen(uargv1),",",1,&len); 
 					if (find(elements,sargv,len)) {
 					    //c in a/b
-						otop1argv1 = cpltClass(ufs,sargv);
-						otop1argv2 = cpltClass(ufs,sargv);
+					    int len_ufs = strlen(ufs);
+						otop1argv1 = cpltClass(ufs,sargv,len_ufs);
+						otop1argv2 = cpltClass(ufs,sargv,len_ufs);
 					} else {
 						otop1argv1 = uargv1;
 						otop1argv2 = uargv2;
@@ -480,12 +529,12 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					sds *elements2 = sdssplitlen(uargv2,strlen(uargv2),",",1,&len2);
 					
 					if (find(elements1,sargv,len1)) {
-						otop1argv1 = cpltClass(ufs,sargv);
+						otop1argv1 = cpltClass(ufs,sargv,0);
 					} else {
 						otop1argv1 = uargv1;
 					}
 					if (find(elements2,sargv,len2)){
-						otop1argv2 = cpltClass(ufs,sargv);
+						otop1argv2 = cpltClass(ufs,sargv,0);
 					} else {
 						otop1argv2 = uargv2;
 					}
@@ -512,11 +561,11 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					otop2argv1 = uargv1;
 					otop2argv2 = uargv2;					
 				} else if (!strcmp(uargv1,sargv)) {
-					otop2argv1 = cpltClass(ufs,sargv);
+					otop2argv1 = cpltClass(ufs,sargv,0);
 					otop2argv2 = uargv2;
 				} else if (!strcmp(uargv2,sargv)) {
 					otop2argv1 = uargv1;
-					otop2argv2 = cpltClass(ufs,sargv);
+					otop2argv2 = cpltClass(ufs,sargv,0);
 				} else {
 					otop2argv1 = uargv1;
 					otop2argv2 = uargv2;
@@ -528,11 +577,11 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				if (find(elements,uargv2,len)) { 
 					//b in a
 					if (find(elements,sargv,len)) {
-						otop2argv1 = cpltClass(ufs,sargv);
+						otop2argv1 = cpltClass(ufs,sargv,0);
 						if (strcmp(uargv2,sargv)) {
 							otop2argv2 = uargv2;
 						} else {
-							otop2argv2 = cpltClass(ufs,sargv);
+							otop2argv2 = cpltClass(ufs,sargv,0);
 						}
 					} else {
 						otop2argv1 = uargv1;
@@ -540,12 +589,12 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					}
 				} else {
 					if (find(elements,sargv,len)) {
-						otop2argv1 = cpltClass(ufs,sargv);
+						otop2argv1 = cpltClass(ufs,sargv,0);
 					} else {
 						otop2argv1 = uargv1;
 					}
 					if (!strcmp(uargv2,sargv)){
-						otop2argv2 = cpltClass(ufs,sargv);
+						otop2argv2 = cpltClass(ufs,sargv,0);
 					} else {
 						otop2argv2 = uargv2;
 					}
@@ -557,11 +606,11 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				sds *elements = sdssplitlen(uargv2,strlen(uargv2),",",1,&len);
 				if (find(elements,uargv1,len)) {
 					if (find(elements,sargv,len)) {
-						otop2argv2 = cpltClass(ufs,sargv);
+						otop2argv2 = cpltClass(ufs,sargv,0);
 						if (strcmp(uargv1,sargv)) {
 							otop2argv1 = uargv1;
 						} else {
-							otop2argv1 = cpltClass(ufs,sargv);
+							otop2argv1 = cpltClass(ufs,sargv,0);
 						}
 					} else {
 						otop2argv1 = uargv1;
@@ -569,12 +618,12 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					}
 				} else {
 					if (find(elements,sargv,len)) {
-						otop2argv2 = cpltClass(ufs,sargv);
+						otop2argv2 = cpltClass(ufs,sargv,0);
 					} else {
 						otop2argv2 = uargv2;
 					}
 					if (!strcmp(uargv1,sargv)){
-						otop2argv1 = cpltClass(ufs,sargv);
+						otop2argv1 = cpltClass(ufs,sargv,0);
 					} else {
 						otop2argv1 = uargv1;
 					}
@@ -582,13 +631,14 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				sdsfreesplitres(elements,len);
 			}
 			if (uargv1len > 1 && uargv2len > 1) {
-				if (!sdscntcmp(uargv1,uargv2)) { 
+				if (!eqccmp(uargv1,uargv2)) { 
 				    //a and b are sets, a == b
 					int len;
 					sds *elements = sdssplitlen(uargv1,strlen(uargv1),",",1,&len);
 					if (find(elements,sargv,len)) {
-						otop2argv1 = cpltClass(ufs,sargv);
-						otop2argv2 = cpltClass(ufs,sargv);
+					    int len_ufs = strlen(ufs);
+						otop2argv1 = cpltClass(ufs,sargv,len_ufs);
+						otop2argv2 = cpltClass(ufs,sargv,len_ufs);
 					} else {
 						otop2argv1 = uargv1;
 						otop2argv2 = uargv2;
@@ -601,12 +651,12 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					
 					//a,b are sets, a != b
 					if (find(elements1,sargv,len1)) {
-						otop2argv1 = cpltClass(ufs,sargv);
+						otop2argv1 = cpltClass(ufs,sargv,0);
 					} else {
 						otop2argv1 = uargv1;
 					}
 					if (find(elements2,sargv,len2)){
-						otop2argv2 = cpltClass(ufs,sargv);
+						otop2argv2 = cpltClass(ufs,sargv,0);
 					} else {
 						otop2argv2 = uargv2;
 					}
@@ -656,7 +706,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					if (sargvlen == 1) {
 						if (!strcmp(sargv,"*")) {
 							otop2argv1 = sargv;							
-						} else if (findClass(ufs,uargv1) == findClass(ufs,uargv2)) {
+						} else if (findClass(ufs,uargv1,0) == findClass(ufs,uargv2,0)) {
 					        //a and b in the same class, c is set to NULL
 					        if (!strcmp(uargv1,sargv) || !strcmp(uargv2,sargv)) {					            
 							    otop2argv1 = shared.star;
@@ -667,7 +717,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					    	//a and b from different classes, consider c is equal to a/b
 					    	if (!strcmp(uargv1,sargv) || !strcmp(uargv2,sargv)) {
 					    	    //a/b == c, c = c.class-c
-					    		otop2argv1 = cpltClass(ufs,sargv);
+					    		otop2argv1 = cpltClass(ufs,sargv,0);
 					    	} else {
 								otop2argv1 = sargv;
 					    	}
@@ -675,7 +725,8 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					} else {
 						int len;
 						sds *elements = sdssplitlen(sargv,strlen(sargv),",",1,&len);
-					   	if (findClass(ufs,uargv1) == findClass(ufs,uargv2)) {
+						int len_ufs = strlen(ufs);
+					   	if (findClass(ufs,uargv1,len_ufs) == findClass(ufs,uargv2,len_ufs)) {
 					   		if (find(elements,uargv1,len) && find(elements,uargv2,len)) {
 					   			otop2argv1 = sargv;
 					   		} else if (find(elements,uargv1,len) || find(elements,uargv2,len)) {				    		    
@@ -686,7 +737,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 						} else {
 							//a and b from different classes, consider a/b is in c(set) 
 							if (find(elements,uargv1,len) || find(elements,uargv2,len)) {			    						   	   
-					    		otop2argv1 = cpltClass(ufs,sargv);
+					    		otop2argv1 = cpltClass(ufs,sargv,0);
 					    	} else {
 								//otop2[1] = createObject(OBJ_STRING,sargv);
 								otop2argv1 = sargv;
@@ -714,7 +765,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					if (sargvlen == 1) {
 						if (!strcmp(sargv,"*")) {
 							otop1argv1 = sargv;
-						} else if (findClass(ufs,uargv1) == findClass(ufs,uargv2)) {
+						} else if (findClass(ufs,uargv1,0) == findClass(ufs,uargv2,0)) {
 					        //a and b in the same class, c is set to NULL
 					        if (!strcmp(uargv1,sargv) || !strcmp(uargv2,sargv)) {
 							    otop1argv1 = shared.star;
@@ -725,7 +776,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					    	//a and b from different classes, consider c is equal to a/b
 					    	if (!strcmp(uargv1,sargv) || !strcmp(uargv2,sargv)) {
 					    	    //a/b == c, c = c.class-c			    						   	   
-					    		otop1argv1 = cpltClass(ufs,sargv);
+					    		otop1argv1 = cpltClass(ufs,sargv,0);
 					    	} else {
 								otop1argv1 = sargv;
 					    	}
@@ -733,7 +784,8 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 					} else {
 					    int len;
                         sds *elements = sdssplitlen(sargv,strlen(sargv),",",1,&len);
-                        if (findClass(ufs,uargv1) == findClass(ufs,uargv2)) {
+                        int len_ufs = strlen(ufs);
+                        if (findClass(ufs,uargv1,len_ufs) == findClass(ufs,uargv2,len_ufs)) {
 					   		if (find(elements,uargv1,len) && find(elements,uargv2,len)) {
 					   			otop1argv1 = sargv;
 					   		} else if (find(elements,uargv1,len) || find(elements,uargv2,len)) {
@@ -744,7 +796,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
                         } else {
 							//a and b from different classes, consider a/b is in c(set) 
 							if (find(elements,uargv1,len) || find(elements,uargv2,len)) {			    						   	   
-					    		otop1argv1 = cpltClass(ufs,sargv);
+					    		otop1argv1 = cpltClass(ufs,sargv,0);
 					    	} else {
 								otop1argv1 = sargv;
 					    	}
@@ -773,14 +825,14 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 			} else if (s1len == 1 && s2len > 1) {
 				int len;
                 sds *elements = sdssplitlen(s2,strlen(s2),",",1,&len);  
-                if (find(elements,s1,len)) otop2argv1 = cpltClass(ufs,s2);
+                if (find(elements,s1,len)) otop2argv1 = cpltClass(ufs,s2,0);
                 else otop2argv1 = s2;
                 otop1argv1 = s1;
                 sdsfreesplitres(elements,len);
 			} else if (s1len > 1 && s2len == 1) {
 				int len;
                 sds *elements = sdssplitlen(s1,strlen(s1),",",1,&len);  
-                if (find(elements,s2,len)) otop1argv1 = cpltClass(ufs,s1);
+                if (find(elements,s2,len)) otop1argv1 = cpltClass(ufs,s1,0);
                 else otop1argv1 = s1;
                 otop2argv1 = s2;
                 sdsfreesplitres(elements,len);
@@ -824,8 +876,8 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
                     otop2argv1 = s2;
                 } else if (overlap_num == len1 || overlap_num == len2) {
                     if (len1 == len2) {
-                        otop1argv1 = cpltClass(ufs,NULL);
-                        otop2argv1 = cpltClass(ufs,NULL);
+                        otop1argv1 = cpltClass(ufs,NULL,0);
+                        otop2argv1 = cpltClass(ufs,NULL,0);
                     } else {
                         if (overlap_num == len1) {
                             otop1argv1 = (char*)zmalloc(sdslen(s2nos1)+1);

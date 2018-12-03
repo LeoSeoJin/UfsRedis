@@ -272,31 +272,7 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
     int len, i;
     sds v_ufs;
     sds temp = NULL;
-    char *uf,*r;
-    
-    uf = (char*)zmalloc(strlen(u)+1);
-	strcpy(uf,u);
-
-    len = 1;
-    for (i = 0; i < (int)strlen(uf); i++)
-		if (uf[i] == '/') len++;
-			
-	sds elements[len];
-	memset(elements,0,len);
-
-	i = 0;
-	r = strtok(uf,"/");
-	
-	while (i<len && r != NULL) {
-		//elements[i] = sdsempty();
-		//elements[i] = sdscat(elements[i],r);
-		elements[i] = sdsnew(r);
-		r = strtok(NULL,"/");
-		i++;
-	}
-    zfree(uf);
-    uf = NULL;
-    
+    sds *elements = sdssplitlen(u,strlen(u),"/",1,&len);
     //for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
    
     if (type == OPTYPE_UNION) {
@@ -320,55 +296,7 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
             	v_ufs = sdsempty();
                 int low = (argv1class < argv2class)? argv1class: argv2class;
                 int high = (argv1class > argv2class)? argv1class: argv2class;
-                /***          
-                uf = (char*)zmalloc(strlen(u)+1);
-            	strcpy(uf,u);
-
-                len = 1;
-                for (i = 0; i < (int)strlen(uf); i++)
-            		if (uf[i] == '/') len++;
-			
-            	sds eles[len];
-            	memset(eles,0,len);
-
-            	i = 0;
-	            r = strtok(uf,"/");
-	
-            	while (i<len && r != NULL) {
-   	            	eles[i] = sdsempty();
-	            	eles[i] = sdscat(eles[i],r);
-	            	r = strtok(NULL,"/");
-	            	i++;
-	            }
-                zfree(uf);                
-                uf = NULL;
                 
-                //for (int j = 0; j < len; j++) serverLog(LL_LOG,"eles[%d] %s",j,eles[j]);
-                
-                temp = sdsempty();
-                temp = sdscat(temp,eles[low]);
-                temp = sdscat(temp,",");
-                temp = sdscat(temp,eles[high]);
-                
-                for (i = 0; i < len; i++) {
-                	if (i == high) continue;
-    				if (i == low) {
-                        //serverLog(LL_LOG,"temp: %s",temp);
-        				v_ufs = sdscat(v_ufs,temp); 
-        	        } else {
-        	            //serverLog(LL_LOG,"eles[%d] %s",i,eles[i]);
-        	            v_ufs = sdscat(v_ufs,eles[i]);
-        	        }
-                    if (high != len-1) {
-                        if (i != len-1) v_ufs = sdscat(v_ufs,"/");
-                    } else {
-                        if (i != len-2) v_ufs = sdscat(v_ufs,"/");
-                    }
-                }
-                for (i = 0; i < len; i++) sdsfree(eles[i]);   
-                **/             
-                //temp = sdsempty();
-                //temp = sdscat(temp,elements[low]);
                 temp = sdsnew(elements[low]);
                 temp = sdscat(temp,",");
                 temp = sdscat(temp,elements[high]);
@@ -401,7 +329,8 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
     	 		
             for (i = 0; i < len; i++) {
                if (findSds(elements[i],argv1)){
-                  if (sdscntcmp(elements[i],argv1)) {
+                  //if (sdscntcmp(elements[i],argv1)) {
+	          if (sdslen(elements[i]) != strlen(argv1)) {
                       argvclass = i; 
                   }     
                   break;
@@ -411,47 +340,6 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
             //for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
             
             if (argvclass != -1) {  
-                /**                 
-                uf = (char*)zmalloc(strlen(u)+1);
-                strcpy(uf,u);
-
-                sds eles[len];
-                memset(eles,0,len);
-    
-                i = 0;
-    	        r = strtok(uf,"/");
-	
-                while (i<len && r != NULL) {
-       	           	eles[i] = sdsempty();
-    	           	eles[i] = sdscat(eles[i],r);
-    	           	r = strtok(NULL,"/");
-    	           	i++;
-    	        }
-                zfree(uf);
-                uf = NULL;
-                
-                //for (int j = 0; j < len; j++) serverLog(LL_LOG,"eles[%d] %s",j,eles[j]);
-                                    
-                temp = sdsempty();
-                temp = sdscat(temp,eles[argvclass]);
-                temp = sdsDel(temp,argv1);            
-                
-            	v_ufs = sdsempty();
-                for (i = 0; i < len; i++) {
-                    if (i != argvclass) {
-                        v_ufs = sdscat(v_ufs,eles[i]);
-                        if (i != len-1) v_ufs = sdscat(v_ufs,"/");
-                    } else {
-                        v_ufs = sdscat(v_ufs,temp);
-                        v_ufs = sdscat(v_ufs,"/");
-                        v_ufs = sdscat(v_ufs,argv1);
-                        if (argvclass != len-1) v_ufs = sdscat(v_ufs,"/");
-                    }  
-                }
-                for (i = 0; i < len; i++) sdsfree(eles[i]);
-                **/
-                //temp = sdsempty();
-                //temp = sdscat(temp,elements[argvclass]);
                 temp = sdsnew(elements[argvclass]);
                 temp = sdsDel(temp,argv1);            
                 
@@ -482,7 +370,8 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
    }
    //serverLog(LL_LOG,"updateVerticeState(end): v_ufs %s len: %lu v->content %s len %lu",v_ufs,sdslen(v_ufs),v->content,strlen(v->content));
    
-   for (i = 0; i < len; i++) sdsfree(elements[i]);
+   //for (i = 0; i < len; i++) sdsfree(elements[i]);
+   sdsfreesplitres(elements,len);
    sdsfree(v_ufs);
    sdsfree(temp);
 }
@@ -1339,11 +1228,6 @@ void test3 (sds t) {
 }
 
 void testCommand(client *c) {
-    sds t1 = sdsnew("23_3,45_77,29_100,8_2");
-    sds t2 = sdsnew("45_77,8_2,23_3,29_100");
-    sds t3 = sdsnew("23_3,8_2,34_5");
-
-    serverLog(LL_LOG,"test: %d %d",sdscntcmp(t1,t2),sdscntcmp(t2,t3));       
     addReply(c,shared.ok);
 }
 
