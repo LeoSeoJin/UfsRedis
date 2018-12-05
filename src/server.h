@@ -756,6 +756,7 @@ struct sharedObjectsStruct {
     *unsubscribebulk, *psubscribebulk, *punsubscribebulk, *del, *unlink,
     *rpop, *lpop, *lpush, *emptyscan,
     *argv1nosameclass, *argv2nosameclass, *argv12nosameclass,*argvsplitnosameclass,*argvnoexistelem,*argvnoexistallelems, *argvuaddexistufs,
+    *argvunion,
     *select[PROTO_SHARED_SELECT_CMDS],
     *integers[OBJ_SHARED_INTEGERS],
     *mbulkhdr[OBJ_SHARED_BULKHDR_LEN], /* "*<value>\r\n" */

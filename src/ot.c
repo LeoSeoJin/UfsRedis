@@ -3,15 +3,17 @@
 /*list: sds t: char**/
 sds sdsDel(sds list, char *t) {
     //serverLog(LL_LOG,"sdsDel %s from %s",t,list);
-	int len,num,i,j,k;
-
+    //if (strlen(t)>sdslen(list)) { serverLog(LL_LOG,"delete error");
+    //serverLog(LL_LOG,"sdsDel %s(%d) from %s(%d)",t,(int)strlen(t),list,(int)sdslen(list));}
+	
+    int len,num,i,j,k;
+    
 	sds *elements = sdssplitlen(list,sdslen(list),",",1,&len);
     sds *del = sdssplitlen(t,strlen(t),",",1,&num);
     
     for (i = 0; i < len; i++) {
         for (j = 0; j < num; j++) {
 	        if (!sdscmp(elements[i],del[j])) {
-	            //**
 		        for (k = i; k < len-1; k++) {
 			        sdsclear(elements[k]);
 			        elements[k] = sdscat(elements[k],elements[k+1]);
@@ -37,7 +39,7 @@ sds sdsDel(sds list, char *t) {
 
    	sdsfreesplitres(elements,len);
    	sdsfreesplitres(del,num);
-
+    //serverLog(LL_LOG,"sdsDel result: %s",list);
    	return list;
 }
 
@@ -174,37 +176,30 @@ int findClass(sds ufs, char *v, int len_ufs) {
  *ufs is the state of disjoint set
  */
 char* cpltClass(char *ufs, char *v, int len_ufs) {
-    int len;
-    if (v && !len_ufs) len_ufs = strlen(ufs);
-    sds *elements = sdssplitlen(ufs,len_ufs,"/",1,&len);
 	sds result = sdsempty();
-	
 	if (v == NULL) {
 	    result = sdscat(result,"*");
-	    goto r;
-	}
-	char *c;
-    for (int i = 0; i < len; i++) {
-        if (findSds(elements[i],v)) {
-            elements[i] = sdsDel(elements[i],v);
-            //elements[i] = sdstrim(elements[i],v);
-            if (sdslen(elements[i])==0) {
-    			//serverLog(LL_LOG,"*********************cpltclass of element is NULL");
-    			//sdsfree(result);
-    			result = sdscat(result,"*");
-    		} else {
-            	result = sdscat(result,elements[i]);
-            }
-            break;
-        } 
+	} else {
+        if (!len_ufs) len_ufs = strlen(ufs);
+        int len;
+        sds *elements = sdssplitlen(ufs,len_ufs,"/",1,&len);
+        for (int i = 0; i < len; i++) {
+            if (findSds(elements[i],v)) {
+                if (sdslen(elements[i]) == strlen(v)) {
+        			result = sdscat(result,"*");
+                } else {
+                    elements[i] = sdsDel(elements[i],v);
+                	result = sdscat(result,elements[i]);
+                }
+                break;
+            } 
+        }
+        sdsfreesplitres(elements,len);
     }
-
-r:       
-    c = (char*)zmalloc(sdslen(result)+1);
+    char *c = (char*)zmalloc(sdslen(result)+1);
     memcpy(c,result,sdslen(result));
     c[sdslen(result)] = '\0';
     
-    sdsfreesplitres(elements,len);
     sdsfree(result);
   
     return c;
@@ -402,9 +397,9 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 
 	int op1type = op1->optype;
     int op2type = op2->optype;
-    
-	//serverLog(LL_LOG,"entering ot function: ufs: %s",ufs);
-	//serverLog(LL_LOG,"************************");
+
+    //serverLog(LL_LOG,"************************");
+	//serverLog(LL_LOG,"entering ot: ufs: %s",ufs);	
 	//serverLogArgv(op1,op2);
 
 	if (flag == 2) {
@@ -692,7 +687,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				uargv1 = op1->argv1;
 				uargv2 = op1->argv2;
 				sargv = op2->argv1;
-                //serverLog(LL_LOG,"union %s %s split %s  ",uargv1,uargv2,sargv);
+                //serverLog(LL_LOG,"union %s %s(%s) split %s(%s)",uargv1,uargv2,op1->oid,sargv,op2->oid);
 				sargvlen = strchr(sargv,',')==NULL?1:2;
 
 				otop1type = OPTYPE_UNION;
@@ -751,7 +746,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 				uargv1 = op2->argv1;
 				uargv2 = op2->argv2;
 				sargv = op1->argv1;
-                //serverLog(LL_LOG,"split %s  union %s %s",sargv,uargv1,uargv2);
+                //serverLog(LL_LOG,"split %s(%s)  union %s %s(%s)",sargv,op1->oid,uargv1,uargv2,op2->oid);
 				sargvlen = strchr(sargv,',')==NULL?1:2;
 
 				otop1type = OPTYPE_SPLIT;
@@ -812,7 +807,7 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 			s1 = op1->argv1;
 			s2 = op2->argv1;
             
-            //serverLog(LL_LOG,"split %s  split %s %s",s1,s2);
+            //serverLog(LL_LOG,"++++split %s(%s)  split %s(%s)",s1,op1->oid,s2,op2->oid);
 			s1len = strchr(s1,',')==NULL?1:2;
 			s2len = strchr(s2,',')==NULL?1:2;
 			
@@ -823,19 +818,33 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
 			    otop1argv1 = s1;
 			    otop2argv1 = s2;
 			} else if (s1len == 1 && s2len > 1) {
-				int len;
-                sds *elements = sdssplitlen(s2,strlen(s2),",",1,&len);  
-                if (find(elements,s1,len)) otop2argv1 = cpltClass(ufs,s2,0);
-                else otop2argv1 = s2;
-                otop1argv1 = s1;
-                sdsfreesplitres(elements,len);
+			    if (!strcmp(s1,"*")) {
+			        otop1argv1 = s1;
+			        otop2argv1 = s2;
+			    } else {
+				    int len;
+                    sds *elements = sdssplitlen(s2,strlen(s2),",",1,&len);  
+                
+                    if (find(elements,s1,len)) otop2argv1 = cpltClass(ufs,s2,0);
+                    else otop2argv1 = s2;
+                    otop1argv1 = s1;
+                
+                    sdsfreesplitres(elements,len);
+                }
 			} else if (s1len > 1 && s2len == 1) {
-				int len;
-                sds *elements = sdssplitlen(s1,strlen(s1),",",1,&len);  
-                if (find(elements,s2,len)) otop1argv1 = cpltClass(ufs,s1,0);
-                else otop1argv1 = s1;
-                otop2argv1 = s2;
-                sdsfreesplitres(elements,len);
+			    if (!strcmp(s2,"*")) {
+			        otop1argv1 = s1;
+			        otop2argv1 = s2;
+			    } else {
+				    int len;
+                    sds *elements = sdssplitlen(s1,strlen(s1),",",1,&len);  
+
+                    if (find(elements,s2,len)) otop1argv1 = cpltClass(ufs,s1,0);
+                    else otop1argv1 = s1;
+                    otop2argv1 = s2;
+                                
+                    sdsfreesplitres(elements,len);
+                }
 			} else {
 				int len1,len2,i;
                 sds *elements1 = sdssplitlen(s1,strlen(s1),",",1,&len1);  
@@ -880,13 +889,13 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag) {
                         otop2argv1 = cpltClass(ufs,NULL,0);
                     } else {
                         if (overlap_num == len1) {
-                            otop1argv1 = (char*)zmalloc(sdslen(s2nos1)+1);
-                            strcpy(otop1argv1,s2nos1);
-                            otop2argv1 = s1;
+                            otop2argv1 = (char*)zmalloc(sdslen(s2nos1)+1);
+                            strcpy(otop2argv1,s2nos1);
+                            otop1argv1 = s1;                                                       
                         } else {
-                            otop2argv1 = (char*)zmalloc(sdslen(s1nos2)+1);
-                            strcpy(otop2argv1,s1nos2);
-                            otop1argv1 = s2;
+                            otop1argv1 = (char*)zmalloc(sdslen(s1nos2)+1);
+                            strcpy(otop1argv1,s1nos2);
+                            otop2argv1 = s2;
                         }                        
                     }
                 } else {
@@ -967,22 +976,16 @@ sds calculateOids(vertice* v, sds oids){
 }
 
 int findOid(sds list, char *s) {
-    int result = 0;
-    
-    //sds list = sdsnew(temp);
-    //list = sdscat(list,",");
-	        
+    int result = 0;	        
     sds t = sdsnew(",");
     t = sdscat(t,s);
-    //t = sdscat(t,",");
-    if (strstr(list,t)) result = 1;
-            
+
+    if (strstr(list,t)) result = 1;            
+
     sdsfree(t);  
-    //sdsfree(list);
     return result;
 }
 
-//**
 vertice *locateRVertice(vertice* q, sds ctx) {
     sds t = sdsnew("init");
 	while (q) {
@@ -1006,51 +1009,21 @@ vertice *locateRVertice(vertice* q, sds ctx) {
 		    t = sdscat(t,",");
 		    t = sdscat(t,q->ledge->oid);
 		    q = q->ledge->adjv;
-	            //serverLog(LL_LOG,"%s",t);
+	        //serverLog(LL_LOG,"%s",t);
 		} else if (q->redge && findOid(ctx,q->redge->oid)) {
 		    t = sdscat(t,",");
 		    t = sdscat(t,q->redge->oid);
 		    q = q->redge->adjv;
-	            //serverLog(LL_LOG,"%s",t);
+	        //serverLog(LL_LOG,"%s",t);
 		} else {
 		    sdsfree(t);
-		    //serverLog(LL_LOG,"2D state space does not have the vertice");
 		    return NULL;
 		}
 	} 
 	sdsfree(t);
-	//serverLog(LL_LOG,"2D state space does not have the vertice");
 	return NULL;
 }
-/**/
 
-/***
-vertice *locateRVertice(vertice* q, sds ctx) {
-    sds t = sdsnew("init");
-	while (q) {
-	    if ((!strcmp(ctx,"init") && !strcmp(t,"init")) || !oidscmp(t,ctx)) {
-            sdsfree(t);
-            //serverLog(LL_LOG,"locateRVertice: return vertex q: %s %s",t,q->content);
-		    return q;
-		} else if (q->ledge && strstr(ctx,q->ledge->oid)) {
-		    t = sdscat(t,",");
-		    t = sdscat(t,q->ledge->oid);
-		    q = q->ledge->adjv;
-		} else if (q->redge && strstr(ctx,q->redge->oid)) {
-		    t = sdscat(t,",");
-		    t = sdscat(t,q->redge->oid);
-		    q = q->redge->adjv;
-		} else {
-		    sdsfree(t);
-		    //serverLog(LL_LOG,"2D state space does not have the vertice");
-		    return NULL;
-		}
-	} 
-	sdsfree(t);
-	//serverLog(LL_LOG,"2D state space does not have the vertice");
-	return NULL;
-}
-**/
 vertice *locateVertice(list* space, sds ctx) {
 	if (listLength(space)) {
 		if (!ctx) {

@@ -35,7 +35,7 @@ cudGraph *getUfs(sds key) {
 	listRewind(server.ufslist,&li);
     while((ln = listNext(&li))) {
         cudGraph *ufs = ln->value;
-        if (!sdscmp(ufs->key,key)) return ufs;
+        if (!strcmp(ufs->key,key)) return ufs;
     }
     
     serverLog(LL_LOG,"ufs with key %s does not exist!!",key);
@@ -112,7 +112,7 @@ int existEdge(cudGraph *ufs,int v1, int v2) {
 
 int existElement(cudGraph *ufs, sds e) {
     for(int i = 0; i < ufs->vertexnum; i++) { 
-        if(!sdscmp(e, ufs->dlist[i].data))  return 1; 
+        if(!strcmp(e, ufs->dlist[i].data))  return 1; 
     } 
     return 0; 	
 }
@@ -121,7 +121,7 @@ int existElements(cudGraph *ufs, sds *list, int len) {
     int i,j;
 	for (i = 0; i < len; i++) {
        for(j = 0; j < ufs->vertexnum; j++)  
-          if(!sdscmp(list[i], ufs->dlist[j].data)) break;
+          if(!strcmp(list[i], ufs->dlist[j].data)) break;
        if (j == ufs->vertexnum) break;
 	}
 	
@@ -276,7 +276,7 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
     //for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
    
     if (type == OPTYPE_UNION) {
-	   	//serverLog(LL_LOG,"updaeVerticeState from %s union %s %s",u,argv1,argv2);
+	    //serverLog(LL_LOG,"updaeVerticeState from %s union %s %s",u,argv1,argv2);
 		if (!strcmp(argv1,"*") || !strcmp(argv2,"*")) {
 			v_ufs = sdsempty();
 		} else {
@@ -321,7 +321,7 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
            }
         }       
    } else {
-       //serverLog(LL_LOG,"updaeVerticeState from %s split %s",u,argv1);
+        //serverLog(LL_LOG,"updaeVerticeState from %s split %s",u,argv1);
        	if (!strcmp(argv1,"*")) {
        	    v_ufs = sdsempty();
        	} else { 
@@ -643,7 +643,7 @@ int checkSplitArgv(client *c, robj **argv) {
 	if (strchr(argv[1]->ptr,',')!=NULL) {
 		sds *elements;
 		int len;
-	
+	    //serverLog(LL_LOG,"checksplit2222");
 		elements = sdssplitlen(argv[1]->ptr,strlen(argv[1]->ptr),",",1,&len);
 	
 		if (!isConnected(ufs,elements,len)) {
@@ -660,6 +660,7 @@ int checkSplitArgv(client *c, robj **argv) {
 		}
 		sdsfreesplitres(elements,len);
 	} else {
+	    //serverLog(LL_LOG,"checksplit1111");	
 		if (!existElement(ufs,argv[1]->ptr)) {
 			c->flag_ufs = 0;
 			addReply(c,shared.argvnoexistelem);
@@ -674,7 +675,10 @@ void controlAlg(client *c) {
 		list *space = getSpace(c->argv[c->argc-1]->ptr);
 		if (!(c->flags & CLIENT_MASTER)) {
 			/*local processing: new locally generated operation*/
-			if (checkArgv(c,c->argv) == Argv_ERR) return; 
+			if (checkArgv(c,c->argv) == Argv_ERR) {
+                //serverLog(LL_LOG,"checkargv not pass");
+			    return; 			   
+			}
 
 			cudGraph *ufs = getUfs(c->argv[c->argc-1]->ptr); /*op argv1 argv2 tag1*/
 			op_num++;
@@ -689,7 +693,7 @@ void controlAlg(client *c) {
             			
 			char buf1[Port_Num+1] = {0};
 			char buf2[Max_Op_Num] = {0};
-			oid = sdscat(oid,itos(server.port-6378,buf1,10));
+			oid = sdscat(oid,itos(server.port-6379,buf1,10));
 			oid = sdscat(oid,"_");
 			oid = sdscat(oid,itos(op_num,buf2,10));
 	        
@@ -765,6 +769,7 @@ void controlAlg(client *c) {
             //update ufs of vertice
             if (v->ledge) {
             	updateVerticeUfs(ufs,v1);
+                //serverLog(LL_LOG,"local state: %s",v1->content);
 			}
 		} else {
 			/*remote processing: op argv1 (argv2) oid oids tag1*/
@@ -793,10 +798,10 @@ void controlAlg(client *c) {
 			    a1[sdslen(c->argv[1]->ptr)] = '\0';
 			}
 			
-			long long start = ustime();            
+			//long long start = ustime();            
 			vertice *u = locateVertice(space,ctx);
-			long long duration = ustime()-start;
-			serverLog(LL_LOG,"remote processing: locatevertice: %lld",duration);
+			//long long duration = ustime()-start;
+			//serverLog(LL_LOG,"remote processing: locatevertice: %lld",duration);
 			
 			vertice *v = createVertice();			
 			listAddNodeTail(space,v);
@@ -851,22 +856,29 @@ void controlAlg(client *c) {
 				c->cmd->otproc(u->content,u->ledge,u->redge,p->ledge, ul->redge, OT_SPLIT);
 
                 updateVerticeUfsFromState(ul->content,ul->redge->optype,ul->redge->argv1,ul->redge->argv2,pl); 
+                //updateVerticeUfsFromState(p->content,p->ledge->optype,p->ledge->argv1,p->ledge->argv2,pl); 
                 
 				u = ul;
 				p = pl;
 			}
-			
 			if (ot_num!=0) serverLog(LL_LOG,"otnum: %d",ot_num);
+
+            //serverLog(LL_LOG,"before: %s",u->content);
 			/*execute the trasformed remote operation (finish ot process)
 			 *or original remote operation (u->ledge = NULL, no ot process)
 			 */
-            if (!strcmp(c->argv[0]->ptr, "union")) {
+            if (u->redge->optype == OPTYPE_UNION) {
             	//serverLog(LL_LOG,"unionProc: %d %s %s",u->redge->optype,u->redge->argv1,u->redge->argv2);
+                //serverLog(LL_LOG,"union %s %s",u->redge->argv1,u->redge->argv2);
+                //serverLog(LL_LOG,"update: %s",p->content);
             	unionProc(c,u->redge->argv1,u->redge->argv2);            	
-            }	
-            if (!strcmp(c->argv[0]->ptr, "split")) {
+    		    //serverLog(LL_LOG,"arfter: %s",p->content);
+            } else {
                 //serverLog(LL_LOG,"splitProc: %d %s",u->redge->optype,u->redge->argv1);                
+                //serverLog(LL_LOG,"split %s",u->redge->argv1);
+                //serverLog(LL_LOG,"update: %s",p->content);
                 splitProc(c,u->redge->argv1);
+                //serverLog(LL_LOG,"arfter: %s",p->content);
             }
 		}
 	} else {
@@ -953,7 +965,7 @@ void controlAlg(client *c) {
 	    listRewind(sspacelist->spaces,&li);	    
         while((ln = listNext(&li))) {
             verlist *s = ln->value;
-            if (sdscmp(s->key,c->argv[c->argc-1]->ptr) || s->id == c->slave_listening_port) continue;
+            if (strcmp(s->key,c->argv[c->argc-1]->ptr) || s->id == c->slave_listening_port) continue;
 			
             vertice *loc = locateVertice(s->vertices,NULL);
             vertice *locr = createVertice();
@@ -968,22 +980,38 @@ void controlAlg(client *c) {
     	c->flag_ufs = 1;
     	
     	/*rewrite the command argv and transform it to other clients;*/
-		if (c->argc == 6) {
-	    	//union x y oid ctx tag1	        
-	        robj *argv[3];   	
-	    	argv[0] = createStringObject(u->ledge->argv1,strlen(u->ledge->argv1));
-	    	argv[1] = createStringObject(u->ledge->argv2,strlen(u->ledge->argv2));
-		    argv[2] = createStringObject(oids,sdslen(oids));
-   
-		    rewriteClientCommandArgument(c,1,argv[0]);
-		    rewriteClientCommandArgument(c,2,argv[1]);
-	        rewriteClientCommandArgument(c,4,argv[2]); 
-
+		//if (c->argc == 6) {
+		if (u->ledge->optype == OPTYPE_UNION) { //note: may transfored operation(arfter ot: split split)
+	    	//union x y oid ctx tag1	
+	    	if (c->argc == 6) {        
+	            robj *argv[3];   	
+	    	    argv[0] = createStringObject(u->ledge->argv1,strlen(u->ledge->argv1));
+	    	    argv[1] = createStringObject(u->ledge->argv2,strlen(u->ledge->argv2));
+		        argv[2] = createStringObject(oids,sdslen(oids));
+            
+		        rewriteClientCommandArgument(c,1,argv[0]);
+		        rewriteClientCommandArgument(c,2,argv[1]);
+	            rewriteClientCommandArgument(c,4,argv[2]); 
+            } else {
+	            robj *argv[5];   	
+	    	    argv[0] = createStringObject(u->ledge->argv1,strlen(u->ledge->argv1));
+	    	    argv[1] = createStringObject(u->ledge->argv2,strlen(u->ledge->argv2));
+		        argv[2] = createStringObject(oids,sdslen(oids));
+                argv[4] = createStringObject(oid,strlen(oid));
+                argv[5] = createStringObject(c->argv[4]->ptr,sdslen(c->argv[4]->ptr));
+                
+                rewriteClientCommandArgument(c,0,shared.argvunion);
+		        rewriteClientCommandArgument(c,3,argv[4]);
+		        rewriteClientCommandArgument(c,1,argv[0]);
+		        rewriteClientCommandArgument(c,2,argv[1]);
+	            rewriteClientCommandArgument(c,4,argv[2]);
+	            rewriteClientCommandArgument(c,5,argv[5]);             
+            }
 	        //serverLog(LL_LOG,"argv: %s %s",(char*)argv[0]->ptr,(char*)argv[1]->ptr);
 	        //serverLog(LL_LOG,"after rewrite u->ledge: %d %s %s %s",u->ledge->optype,u->ledge->argv1,u->ledge->argv2,u->ledge->oid);
 	        //serverLogCmd(c);       
 		} else {
-	        //split x oid ctx tag1	
+	        //split x oid ctx tag 
 	        robj *argv[2];   	
 	    	argv[0] = createStringObject(u->ledge->argv1,strlen(u->ledge->argv1));
 		    argv[1] = createStringObject(oids,sdslen(oids));

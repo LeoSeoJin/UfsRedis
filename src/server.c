@@ -1481,6 +1481,7 @@ void createSharedObjects(void) {
         "-Some elements do not exist in the union-find-split!\r\n"));
     shared.argvuaddexistufs = createObject(OBJ_STRING,sdsnew(
     	"-The union-find-split has existed!\r\n"));
+    shared.argvunion = createObject(OBJ_STRING,sdsnew("union"));
     shared.star = sdsnew("*");
 }
 
