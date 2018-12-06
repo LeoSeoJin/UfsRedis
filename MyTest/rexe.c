@@ -10,8 +10,8 @@
 #define ELEMENTS 50
 #define OP_UNION 0
 #define OP_SPLIT 1
-#define MAX 1000
-#define ITEM_MAX 100
+#define MAX 100000
+#define ITEM_MAX 10000
 
 void *p1(void *arg);
 void *p2(void *arg);

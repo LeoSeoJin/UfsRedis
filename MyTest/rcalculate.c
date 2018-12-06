@@ -20,10 +20,18 @@ int main(int argc, char *arg[]) {
     sds op = sdsempty();
     double total_time_union = 0;
     double total_time_split = 0;
+    double total_client_time_union = 0;
+    double total_client_time_split = 0;
    	double mem = 0;
    	char mem_double[30];
     sds ufs_list = sdsempty();  	
     int key = atoi(arg[2])-1;
+    
+    //double time_union[client_num];
+    //double time_split[client_num];
+    
+    //int number_union[client_num];
+    //int number_split[client_num];
     
 	redisContext *conn_server = redisConnect(ip[0],port[0]);
 	if(conn_server->err) printf("Connection error: %s\n",conn_server->errstr);
@@ -38,6 +46,7 @@ int main(int argc, char *arg[]) {
     command_ufs = sdscat(command_ufs,key_list[key]);
     
     int totlines,num,t;
+    int op_num,counter,i;
     sds *lines, *argv, *c,temp;
     
 	reply = (redisReply*)redisCommand(conn_server,command_memory);	
@@ -68,33 +77,47 @@ int main(int argc, char *arg[]) {
     int op_split = 0;
     double avg_time_union = 0;
     double avg_time_split = 0;
+    double avg_client_time_union = 0;
+    double avg_client_time_split = 0;
     
+    counter = 0;
     for (int j = 0; j < totlines; j++) {
         if (strstr(lines[j],"union")) {
+            counter++;	
             lines[j] = sdstrim(lines[j]," \t\r\n");
             argv = sdssplitlen(lines[j],sdslen(lines[j]),",",1,&num);
             c = sdssplitlen(argv[0],sdslen(argv[0]),"=",1,&t);
             total_op += atoi(c[1]);
             op_union = atoi(c[1]);
-            
+            //**        	
+    	    sdsfreesplitres(c,t);    	     
+    	    c = sdssplitlen(argv[2],sdslen(argv[2]),"=",1,&t);
+    	    total_time_union += atof(c[1]);
+    	    /**/              
             sdsfreesplitres(c,t);
             sdsfreesplitres(argv,num);
-        }
-        if (strstr(lines[j],"split")) {
+        } else if (strstr(lines[j],"split")) {
+            counter++;	
             lines[j] = sdstrim(lines[j]," \t\r\n");
             argv = sdssplitlen(lines[j],sdslen(lines[j]),",",1,&num);
             c = sdssplitlen(argv[0],sdslen(argv[0]),"=",1,&t);
             total_op += atoi(c[1]);
             op_split = atoi(c[1]);
-            
+            //**       	
+    	    sdsfreesplitres(c,t);    	     
+    	    c = sdssplitlen(argv[2],sdslen(argv[2]),"=",1,&t);
+    	    total_time_split += atof(c[1]);
+    	    /**/        
             sdsfreesplitres(c,t);
             sdsfreesplitres(argv,num);
-        }
+        } else {
+    	    continue;
+    	}
+    	if (counter == 2) break;
    	}
     
     freeReplyObject(reply);
 	redisFree(conn_server);
-	int op_num,counter,i;
 	
 	int k = 0;
 	int max_thread = 12;
@@ -150,6 +173,7 @@ int main(int argc, char *arg[]) {
     	        
     	        c = sdssplitlen(argv[2],sdslen(argv[2]),"=",1,&t);
     	        total_time_union += atof(c[1]);
+    	        total_client_time_union += atof(c[1]);
     	        sdsfreesplitres(c,t);
     	        
     	        sdsfreesplitres(argv,num);
@@ -169,6 +193,7 @@ int main(int argc, char *arg[]) {
     	        
     	        c = sdssplitlen(argv[2],sdslen(argv[2]),"=",1,&t);
     	        total_time_split += atof(c[1]);
+    	        total_client_time_split += atof(c[1]);
     	        sdsfreesplitres(c,t);
     	        
     	        sdsfreesplitres(argv,num);    	    
@@ -199,22 +224,26 @@ int main(int argc, char *arg[]) {
         int len,i;
         sds *elements = sdssplitlen(ufs_list,sdslen(ufs_list),"+",1,&len);
         //printf("elements: %s\n",ufs_list);
-        printf("1: %s\n",elements[0]);
+        //printf("1: %s\n",elements[0]);
         for (i = 0; i < len-1; i++) {
-            printf("%d: %s\n",i+2,elements[i+1]);
+            //printf("%d: %s\n",i+2,elements[i+1]);
             if(sdscmp(elements[i],elements[i+1])) {
                 printf("Contents of ufs are not the same!\n");
-                break;
+                //break;
             }
         }
         sdsfreesplitres(elements,len);
-        if (i == len-1) {
-            avg_time_union = total_time_union/client_num/1000;
-            avg_time_split = total_time_split/client_num/1000;
+        //if (i == len-1) {
+            avg_client_time_union = total_client_time_union/client_num/1000;
+            avg_client_time_split = total_client_time_split/client_num/1000;
+            avg_time_union = total_time_union/(client_num+1)/1000;
+            avg_time_split = total_time_split/(client_num+1)/1000;
+            
             
             printf("memory: %s\n",memory);
     	    printf("op: %s\n",op);
         	printf("average time: union: %.2fms split: %.2fms\n",avg_time_union,avg_time_split);
+        	printf("average client time: union: %.2fms split: %.2fms\n",avg_client_time_union,avg_client_time_split);
         	
         	FILE *fw = fopen("/home/xue/remote.csv","a+");
         	if (!fw) {
@@ -225,7 +254,7 @@ int main(int argc, char *arg[]) {
 		    fprintf(fw,"\t\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%s\n",client_num,total_op,op_union,op_split,avg_time_union,avg_time_split,memory);
 	        fclose(fw);
         	
-        }       
+        //}       
 	} else {
         printf("There still exists client that does not finish processing!\n");	
 	}
