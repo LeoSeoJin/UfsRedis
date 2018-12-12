@@ -364,8 +364,18 @@ void replicationFeedMaster(int dictid, robj **argv, int argc) {
 	server.master->flags |= CLIENT_MASTER_FORCE_REPLY;
 	
     /*add network delay*/
-    //usleep(30000);
-    //sleep(3);
+    if (server.port < 6386) {
+        usleep(3000); //3ms
+        //usleep(13000);
+        //usleep(23000);
+        //usleep(33000);
+        //usleep(43000);
+        //usleep(53000);
+        //usleep(63000);
+        //usleep(73000);
+    } else {
+        usleep(1000);//1ms
+    }
     serverLog(LL_LOG,"Replication to master: %d",server.masterport); 
        
 	addReplyMultiBulkLen(server.master,argc);

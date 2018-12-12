@@ -1273,7 +1273,8 @@ typedef struct pubsubPattern {
 
 typedef void redisCommandProc(client *c);
 typedef int *redisGetKeysProc(struct redisCommand *cmd, robj **argv, int argc, int *numkeys);
-typedef void otProc(sds ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag);
+//typedef void otProc(sds ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag);
+typedef void otProc(sds ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag, int len);
 
 struct redisCommand {
     char *name;
@@ -1895,7 +1896,7 @@ uint64_t redisBuildId(void);
 /*new defined functions*/
 //void ot(sds ufs, robj** op1, robj **op2, dedge *e1, dedge *e2, int flag);
 //void otUfs(sds ufs, robj** op1, robj **op2, dedge *e1, dedge *e2, int flag);
-void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag);
+void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag,int len);
 
 dedge *createOpEdge(int type, char *t1, char *t2, char *oid, vertice *v);
 dedge *createOpEdge1(int type, sds o, vertice *v);

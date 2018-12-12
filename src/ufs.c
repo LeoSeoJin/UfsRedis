@@ -268,11 +268,11 @@ void removeAdjEdge(cudGraph *ufs, char *v, sds *list, int len) {
 	}
 }
 
-void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vertice *v) {
+void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vertice *v, int len_u) {
     int len, i;
     sds v_ufs;
     sds temp = NULL;
-    sds *elements = sdssplitlen(u,strlen(u),"/",1,&len);
+    sds *elements = sdssplitlen(u,len_u,"/",1,&len);
     //for (int j = 0; j < len; j++) serverLog(LL_LOG,"elements[%d] %s",j,elements[j]);
    
     if (type == OPTYPE_UNION) {
@@ -672,7 +672,9 @@ int checkSplitArgv(client *c, robj **argv) {
 
 void controlAlg(client *c) {
 	if (server.masterhost) {
-		list *space = getSpace(c->argv[c->argc-1]->ptr);
+	    cverlist *cvlist = locateCVerlist(c->argv[c->argc-1]->ptr);
+	    list *space = getCverlistVertices(cvlist);
+		//list *space = getSpace(c->argv[c->argc-1]->ptr);
 		if (!(c->flags & CLIENT_MASTER)) {
 			/*local processing: new locally generated operation*/
 			if (checkArgv(c,c->argv) == Argv_ERR) {
@@ -800,6 +802,7 @@ void controlAlg(client *c) {
 			
 			//long long start = ustime();            
 			vertice *u = locateVertice(space,ctx);
+			int len_ufs = cvlist->len_ufs;
 			//long long duration = ustime()-start;
 			//serverLog(LL_LOG,"remote processing: locatevertice: %lld",duration);
 			
@@ -807,36 +810,11 @@ void controlAlg(client *c) {
 			listAddNodeTail(space,v);
 
 			if (!strcmp(c->argv[0]->ptr,"union")) {
-			    /**
-				if (strcmp(a1,c->argv[1]->ptr)) { 
-				    zfree(a1);
-				    a1 = NULL;
-			        a1 = (char*)zmalloc(sdslen(c->argv[1]->ptr)+1);
-			        memcpy(a1,c->argv[1]->ptr,sdslen(c->argv[1]->ptr));
-			        a1[sdslen(c->argv[1]->ptr)] = '\0';
-			    }
-				if (strcmp(a2,c->argv[2]->ptr)) { 
-				    zfree(a2);
-				    a2 = NULL;
-			        a2 = (char*)zmalloc(sdslen(c->argv[2]->ptr)+1);
-			        memcpy(a1,c->argv[2]->ptr,sdslen(c->argv[2]->ptr));
-			        a2[sdslen(c->argv[2]->ptr)] = '\0';
-			    }
-			    **/
 				u->redge = createOpEdge(OPTYPE_UNION,a1,a2,oid,v); 			    			    
-				updateVerticeUfsFromState(u->content,OPTYPE_UNION,c->argv[1]->ptr,c->argv[2]->ptr,v);
+				updateVerticeUfsFromState(u->content,OPTYPE_UNION,c->argv[1]->ptr,c->argv[2]->ptr,v,len_ufs);
 			} else {
-			    /**
-				if (strcmp(a1,c->argv[1]->ptr)) { 
-				    zfree(a1);
-				    a1 = NULL;
-			        a1 = (char*)zmalloc(sdslen(c->argv[1]->ptr)+1);
-			        memcpy(a1,c->argv[1]->ptr,sdslen(c->argv[1]->ptr));
-			        a1[sdslen(c->argv[1]->ptr)] = '\0';
-			    }
-			    **/
 				u->redge = createOpEdge(OPTYPE_SPLIT,a1,NULL,oid,v); 			    				
-				updateVerticeUfsFromState(u->content,OPTYPE_SPLIT,c->argv[1]->ptr,NULL,v);
+				updateVerticeUfsFromState(u->content,OPTYPE_SPLIT,c->argv[1]->ptr,NULL,v,len_ufs);
 			}
 
 			vertice *ul;
@@ -853,10 +831,10 @@ void controlAlg(client *c) {
 				ul = u->ledge->adjv;
 				ul->redge = createOpEdge(-1,NULL,NULL,u->redge->oid,pl);
 
-				c->cmd->otproc(u->content,u->ledge,u->redge,p->ledge, ul->redge, OT_SPLIT);
-
-                updateVerticeUfsFromState(ul->content,ul->redge->optype,ul->redge->argv1,ul->redge->argv2,pl); 
-                //updateVerticeUfsFromState(p->content,p->ledge->optype,p->ledge->argv1,p->ledge->argv2,pl); 
+				//c->cmd->otproc(u->content,u->ledge,u->redge,p->ledge, ul->redge, OT_SPLIT);
+                c->cmd->otproc(u->content,u->ledge,u->redge,p->ledge, ul->redge, OT_SPLIT, len_ufs);
+                
+                updateVerticeUfsFromState(ul->content,ul->redge->optype,ul->redge->argv1,ul->redge->argv2,pl,len_ufs); 
                 
 				u = ul;
 				p = pl;
@@ -910,7 +888,8 @@ void controlAlg(client *c) {
 		//serverLog(LL_LOG,"receive op: %s %s %s", (char*)c->argv[0]->ptr, a1, a2);
 		
 		verlist *s = locateVerlist(c->slave_listening_port,c->argv[c->argc-1]->ptr);
-		vertice *u = locateVertice(s->vertices,ctx);
+		vertice *u = locateVertice(s->vertices,ctx);	
+		int len_ufs = s->len_ufs;
 		
 		//sds oids = sdsempty();
 		//oids = sdscat(oids,ctx);
@@ -926,7 +905,7 @@ void controlAlg(client *c) {
 
 		//serverLog(LL_LOG,"create a new local operation finished, current state %s op: %d %s %s", u->content,u->ledge->optype,u->ledge->argv1,u->ledge->argv2); 	
 
-        updateVerticeUfsFromState(u->content,u->ledge->optype,u->ledge->argv1,u->ledge->argv2,v);
+        updateVerticeUfsFromState(u->content,u->ledge->optype,u->ledge->argv1,u->ledge->argv2,v,len_ufs);
         //serverLog(LL_LOG,"updaeVerticeState finish (local op): %s",v->content);
         
         //serverLog(LL_LOG,"new local edge: %d %s %s %s ",u->ledge->optype, u->ledge->argv1,u->ledge->argv2,u->ledge->oid); 
@@ -948,9 +927,9 @@ void controlAlg(client *c) {
 			ur = u->redge->adjv;
 			ur->ledge = createOpEdge(-1,NULL,NULL,u->ledge->oid,pr);
 			
-			c->cmd->otproc(u->content,u->redge,u->ledge,p->redge,ur->ledge,OT_SPLIT);
+			c->cmd->otproc(u->content,u->redge,u->ledge,p->redge,ur->ledge,OT_SPLIT,len_ufs);
 			
-			updateVerticeUfsFromState(ur->content,ur->ledge->optype,ur->ledge->argv1,ur->ledge->argv2,pr); 
+			updateVerticeUfsFromState(ur->content,ur->ledge->optype,ur->ledge->argv1,ur->ledge->argv2,pr,len_ufs); 
 			//serverLog(LL_LOG,"updaeVerticeState finish (ot process) pr->content: %s",pr->content);			
 			
 			u = ur;
@@ -973,7 +952,7 @@ void controlAlg(client *c) {
 			
 			loc->redge = createOpEdge(u->ledge->optype,u->ledge->argv1,u->ledge->argv2,u->ledge->oid,locr);
 
-            updateVerticeUfsFromState(loc->content,loc->redge->optype,loc->redge->argv1,loc->redge->argv2,locr); 
+            updateVerticeUfsFromState(loc->content,loc->redge->optype,loc->redge->argv1,loc->redge->argv2,locr,len_ufs); 
             //serverLog(LL_LOG,"updaeVerticeState finish (other space)locr->content: %s",locr->content);
         }
 
@@ -1097,6 +1076,7 @@ void uinitCommand(client *c) {
 	    	cverlist *v = createCVerlist(key);
 			vertice *top = createVertice();
 			updateVerticeUfs(ufs,top);
+			setCverlistUfsLen(v,strlen(top->content));
 			listAddNodeTail(v->vertices,top);
 			listAddNodeTail(cspacelist->spaces,v); 
 		}
@@ -1112,12 +1092,15 @@ void uinitCommand(client *c) {
 		    listNode *ln;
 		    listIter li;
 			listRewind(server.slaves,&li);
+			int len_ufs = 0;
 	        while((ln = listNext(&li))) {
     	    	client *c = ln->value;
     	    	
 				verlist *v = createVerlist(c->slave_listening_port,key);
 				vertice *top = createVertice();
 				updateVerticeUfs(ufs,top);
+				if (len_ufs == 0) len_ufs = strlen(top->content);
+				setVerlistUfsLen(v,len_ufs);				
 				listAddNodeTail(v->vertices,top);
 				listAddNodeTail(sspacelist->spaces,v);
 				serverLog(LL_LOG,"create 2D state space for port: %d, key: %s", v->id, v->key);
