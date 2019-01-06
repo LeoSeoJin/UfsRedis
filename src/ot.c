@@ -57,6 +57,57 @@ int find(sds *list, char *v, int len) {
 	return result;
 }
 
+/*used for otUfs(change union operation)*/
+/**
+int findstr(char *buf, char *s) {
+    int i;
+    int j = 0;
+    while (buf[j] != '\0') {
+        i = 0;        
+        while (buf[j+i] == s[i]) {
+            i++;
+            if(s[i]=='\0') {
+                if ((j==0||buf[j-1]==',') && (buf[j+i]=='\0'||buf[j+i]==',')) return 1;
+                else break;
+            }
+        }
+        j++;
+    } 
+    return 0;
+}
+**/
+
+//**
+int findstr(char *buf, char *s) {
+    int i;
+    int j = 0;
+    do{
+        i = 0;        
+        while (buf[j+i] == s[i]) {
+            i++;
+            if(s[i]=='\0') {
+                if ((j==0||buf[j-1]==',') && (buf[j+i]=='\0'||buf[j+i]==',')) return 1;
+                else break;
+            }
+        }
+        //j += i;
+        if (i==0) j++;
+        else j+=i;
+        //j++;
+        if (buf[j] != '\0') {
+            while (buf[j] != ',') {
+                if (buf[j] != '\0') j++;
+                else return 0;
+            }
+            j++;
+        } else {
+            return 0;
+        }
+    } while (buf[j] != '\0');
+    return 0;
+}
+/**/
+
 /*
  *find a sds(element/oid) from sds*(eqc/oids) 
  *return 1(exist)
@@ -200,8 +251,88 @@ char* cpltClass(char *ufs, char *v, int len_ufs) {
     memcpy(c,result,sdslen(result));
     c[sdslen(result)] = '\0';
     
-    sdsfree(result);
-  
+    sdsfree(result); 
+    return c;
+}
+
+char* cplt(char *buf, char *s) {
+	sds result = sdsempty();
+	if (s == NULL) {
+	    result = sdscat(result,"*");
+	} else {
+        int exist_comma = strchr(s,',')?1:0;
+        int len_s;
+        char *sub_s;
+        char r_s[10] = "";	
+        int flag = 0;
+        int comma_s = 0;
+        
+	    if (exist_comma) {
+            len_s = 0;
+            int i = 0;
+            while(s[i] != '\0') {
+                if (s[i] == ',') comma_s++;
+                if (comma_s == 0) {
+                    r_s[len_s] = s[i];
+                    len_s++;
+                }
+                i++;
+           }
+           r_s[len_s] = '\0';
+           sub_s = r_s;
+        } else {
+           sub_s = s;
+           len_s = strlen(s);
+        }
+        
+        int start = 0;
+        int end,j,k,comma_class;
+        while (buf[start] != '\0') {
+            if (buf[start] == '/') start++;
+            end = start;
+            comma_class = 0;
+            while (buf[end+1] != '/' && buf[end+1] != '\0') {
+                if (buf[end] == ',') comma_class++;
+                end++;
+            }
+            
+            int len = end-start+1;
+            int ls = (int)strlen(s);
+            if ((comma_s<comma_class && len>ls) || (comma_s==comma_class && len==ls)) {
+                printf("start: %d\n",start);
+                for (j = start; j <= end-len_s+1; j++) {
+                    k = 0;
+                    while (buf[j+k]==sub_s[k]) {
+                        k++;
+                        if(k==len_s) {
+                            if ((j==start||buf[j-1]==',') && (buf[j+k]=='\0'||buf[j+k]==','||buf[j+k]=='/')) {
+                                if (len == ls) {
+                                    result = sdscat(result,"*");
+                                } else {
+                                    char temp[len+1];
+                                    for (int m = 0; m < len; m++) temp[m] = buf[start+m]; 
+                                    temp[len] = '\0';
+                                    result = sdscat(result,temp);
+                                    result = sdsDel(result,s);
+                                }
+                                flag = 1;
+                                break;    
+                            }
+                        }
+                    }
+                    if (flag) break;                
+                }
+            } 
+            if (flag) break;
+            else start = end+1; 
+        }      
+    }
+    
+    char *c = (char*)zmalloc(sdslen(result)+1);
+    memcpy(c,result,sdslen(result));
+    c[sdslen(result)] = '\0';
+    
+    sdsfree(result); 
     return c;
 }
 
@@ -394,6 +525,8 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag, in
 	char *otop2argv1 = NULL;
 	char *otop2argv2 = NULL;
 
+    char *cpltClass_sargv = NULL;
+     
 	int op1type = op1->optype;
     int op2type = op2->optype;
 
@@ -425,115 +558,57 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag, in
 					otop1argv1 = uargv1;
 					otop1argv2 = uargv2;					
 				} else if (!strcmp(uargv1,sargv)) {
-					otop1argv1 = cpltClass(ufs,sargv,len_ufs);
-					otop1argv2 = uargv2;
+					otop1argv1 = cplt(ufs,sargv);
+					otop1argv2 = uargv2;				
 				} else if (!strcmp(uargv2,sargv)) {
 					otop1argv1 = uargv1;
-					otop1argv2 = cpltClass(ufs,sargv,len_ufs);
+					otop1argv2 = cplt(ufs,sargv);
 				} else {
 					otop1argv1 = uargv1;
 					otop1argv2 = uargv2;	
 				}
 			}
 			if (uargv1len > 1 && uargv2len == 1) {
-				int len;
-				sds *elements = sdssplitlen(uargv1,strlen(uargv1),",",1,&len);
-				if (find(elements,uargv2,len)) {
-					//b in a
-					if (find(elements,sargv,len)) {
-					    //c in a
-						otop1argv1 = cpltClass(ufs,sargv,len_ufs);
-						if (strcmp(uargv2,sargv)) {
-						    //b != c
-							otop1argv2 = uargv2;
-						} else {
-						    //b == c 
-						    otop1argv2 = cpltClass(ufs,sargv,len_ufs);
-						}
-					} else {
-					    //c not in a
-					    otop1argv1 = uargv1;
-					    otop1argv2 = uargv2;
-					}
+				if (findstr(uargv1,sargv)) {
+				    cpltClass_sargv = cplt(ufs,sargv);
+				    otop1argv1 = cpltClass_sargv;				    
 				} else {
-				    //b not in a
-					if (find(elements,sargv,len)) {
-					    //c in a
-						otop1argv1 = cpltClass(ufs,sargv,len_ufs);
-					} else {
-					    //c not in a
-						otop1argv1 = uargv1;
-					}
-					if (!strcmp(uargv2,sargv)){
-						otop1argv2 = cpltClass(ufs,sargv,len_ufs);
-					} else {
-						otop1argv2 = uargv2;
-					}
+				    otop1argv1 = uargv1;
 				}
-				sdsfreesplitres(elements,len);
+				if (!strcmp(uargv2,sargv)) {
+				    if (!cpltClass_sargv) otop1argv2 = cplt(ufs,sargv);
+				    else otop1argv2 = cpltClass_sargv;
+				} else {
+				    otop1argv2 = uargv2;
+				}
 			}
 			if (uargv1len == 1 && uargv2len > 1) {
-				int len;
-				sds *elements = sdssplitlen(uargv2,strlen(uargv2),",",1,&len);
-				if (find(elements,uargv1,len)) {
-					if (find(elements,sargv,len)) {
-						otop1argv2 = cpltClass(ufs,sargv,len_ufs);
-						if (strcmp(uargv1,sargv)) {
-							otop1argv1 = uargv1;
-						} else {
-							otop1argv1 = cpltClass(ufs,sargv,len_ufs);
-						}
-					} else {
-						otop1argv1 = uargv1;
-						otop1argv2 = uargv2;
-					}
+				if (findstr(uargv2,sargv)) {
+				    cpltClass_sargv = cplt(ufs,sargv);
+				    otop1argv2 = cpltClass_sargv;
 				} else {
-					if (find(elements,sargv,len)) {
-						otop1argv2 = cpltClass(ufs,sargv,len_ufs);
-					} else {
-						otop1argv2 = uargv2;
-					}
-					if (!strcmp(uargv1,sargv)){
-						otop1argv1 = cpltClass(ufs,sargv,len_ufs);
-					} else {
-						otop1argv1 = uargv1;
-					}
+				    otop1argv2 = uargv2;
 				}
-				sdsfreesplitres(elements,len);
+				if (!strcmp(uargv1,sargv)) {
+				    if (!cpltClass_sargv) otop1argv1 = cplt(ufs,sargv);
+				    else otop1argv1 = cpltClass_sargv;
+				} else {
+				    otop1argv1 = uargv1;				
+				}
 			}
 			if (uargv1len > 1 && uargv2len > 1) {
-				if (!eqccmp(uargv1,uargv2)) { 
-				    //a and b are sets, a == b 
-					int len;
-					sds *elements = sdssplitlen(uargv1,strlen(uargv1),",",1,&len); 
-					if (find(elements,sargv,len)) {
-					    //c in a/b
-						otop1argv1 = cpltClass(ufs,sargv,len_ufs);
-						otop1argv2 = cpltClass(ufs,sargv,len_ufs);
-					} else {
-						otop1argv1 = uargv1;
-						otop1argv2 = uargv2;
-					}
-					sdsfreesplitres(elements,len);
+				if (findstr(uargv1,sargv)) {
+				    cpltClass_sargv = cplt(ufs,sargv);
+					otop1argv1 = cpltClass_sargv;
 				} else {
-				    //a,b are sets, a != b
-					int len1,len2;
-					sds *elements1 = sdssplitlen(uargv1,strlen(uargv1),",",1,&len1);
-					sds *elements2 = sdssplitlen(uargv2,strlen(uargv2),",",1,&len2);
-					
-					if (find(elements1,sargv,len1)) {
-						otop1argv1 = cpltClass(ufs,sargv,len_ufs);
-					} else {
-						otop1argv1 = uargv1;
-					}
-					if (find(elements2,sargv,len2)){
-						otop1argv2 = cpltClass(ufs,sargv,len_ufs);
-					} else {
-						otop1argv2 = uargv2;
-					}
-					sdsfreesplitres(elements1,len1);
-					sdsfreesplitres(elements2,len2);
+					otop1argv1 = uargv1;
 				}
+                if (findstr(uargv2,sargv)) {
+					if (!cpltClass_sargv) otop1argv2 = cplt(ufs,sargv);
+					else otop1argv2 = cpltClass_sargv;
+				} else {
+					otop1argv2 = uargv2;
+				}				
 			}
 		} else if (op1type == OPTYPE_SPLIT && op2type == OPTYPE_UNION) {
 			char *uargv1 = op2->argv1;
@@ -554,107 +629,57 @@ void otUfs(char *ufs, dedge *op1, dedge *op2, dedge *e1, dedge *e2, int flag, in
 					otop2argv1 = uargv1;
 					otop2argv2 = uargv2;					
 				} else if (!strcmp(uargv1,sargv)) {
-					otop2argv1 = cpltClass(ufs,sargv,len_ufs);
+					otop2argv1 = cplt(ufs,sargv);
 					otop2argv2 = uargv2;
 				} else if (!strcmp(uargv2,sargv)) {
 					otop2argv1 = uargv1;
-					otop2argv2 = cpltClass(ufs,sargv,len_ufs);
+					otop2argv2 = cplt(ufs,sargv);
 				} else {
 					otop2argv1 = uargv1;
 					otop2argv2 = uargv2;
 				}
 			}
 			if (uargv1len > 1 && uargv2len == 1) {
-				int len;
-				sds *elements = sdssplitlen(uargv1,strlen(uargv1),",",1,&len);
-				if (find(elements,uargv2,len)) { 
-					//b in a
-					if (find(elements,sargv,len)) {
-						otop2argv1 = cpltClass(ufs,sargv,len_ufs);
-						if (strcmp(uargv2,sargv)) {
-							otop2argv2 = uargv2;
-						} else {
-							otop2argv2 = cpltClass(ufs,sargv,len_ufs);
-						}
-					} else {
-						otop2argv1 = uargv1;
-						otop2argv2 = uargv2;
-					}
+				if (findstr(uargv1,sargv)) {
+				    cpltClass_sargv = cplt(ufs,sargv);
+				    otop2argv1 = cpltClass_sargv;
 				} else {
-					if (find(elements,sargv,len)) {
-						otop2argv1 = cpltClass(ufs,sargv,len_ufs);
-					} else {
-						otop2argv1 = uargv1;
-					}
-					if (!strcmp(uargv2,sargv)){
-						otop2argv2 = cpltClass(ufs,sargv,len_ufs);
-					} else {
-						otop2argv2 = uargv2;
-					}
+				    otop2argv1 = uargv1;
 				}
-				sdsfreesplitres(elements,len);
+				if (!strcmp(uargv2,sargv)) {
+				    if (!cpltClass_sargv) otop2argv2 = cplt(ufs,sargv);
+				    else otop2argv2 = cpltClass_sargv;
+				} else {
+    				otop2argv2 = uargv2;
+    		    }
 			}
 			if (uargv1len == 1 && uargv2len > 1) {
-				int len;
-				sds *elements = sdssplitlen(uargv2,strlen(uargv2),",",1,&len);
-				if (find(elements,uargv1,len)) {
-					if (find(elements,sargv,len)) {
-						otop2argv2 = cpltClass(ufs,sargv,len_ufs);
-						if (strcmp(uargv1,sargv)) {
-							otop2argv1 = uargv1;
-						} else {
-							otop2argv1 = cpltClass(ufs,sargv,len_ufs);
-						}
-					} else {
-						otop2argv1 = uargv1;
-						otop2argv2 = uargv2;
-					}
+				if (findstr(uargv2,sargv)) {
+				    cpltClass_sargv = cplt(ufs,sargv);
+				    otop2argv2 = cpltClass_sargv;
 				} else {
-					if (find(elements,sargv,len)) {
-						otop2argv2 = cpltClass(ufs,sargv,len_ufs);
-					} else {
-						otop2argv2 = uargv2;
-					}
-					if (!strcmp(uargv1,sargv)){
-						otop2argv1 = cpltClass(ufs,sargv,len_ufs);
-					} else {
-						otop2argv1 = uargv1;
-					}
+				    otop2argv2 = uargv2;
 				}
-				sdsfreesplitres(elements,len);
+				if (!strcmp(uargv1,sargv)) {
+				    if (!cpltClass_sargv) otop2argv1 = cplt(ufs,sargv);
+				    else otop2argv1 = cpltClass_sargv;
+				} else {
+    				otop2argv1 = uargv1;
+    		    }
 			}
 			if (uargv1len > 1 && uargv2len > 1) {
-				if (!eqccmp(uargv1,uargv2)) { 
-				    //a and b are sets, a == b
-					int len;
-					sds *elements = sdssplitlen(uargv1,strlen(uargv1),",",1,&len);
-					if (find(elements,sargv,len)) {
-						otop2argv1 = cpltClass(ufs,sargv,len_ufs);
-						otop2argv2 = cpltClass(ufs,sargv,len_ufs);
-					} else {
-						otop2argv1 = uargv1;
-						otop2argv2 = uargv2;
-					}
-					sdsfreesplitres(elements,len);
+				if (findstr(uargv1,sargv)) {
+				    cpltClass_sargv = cplt(ufs,sargv);
+					otop2argv1 = cpltClass_sargv;
 				} else {
-					int len1,len2;
-					sds *elements1 = sdssplitlen(uargv1,strlen(uargv1),",",1,&len1);
-					sds *elements2 = sdssplitlen(uargv2,strlen(uargv2),",",1,&len2);
-					
-					//a,b are sets, a != b
-					if (find(elements1,sargv,len1)) {
-						otop2argv1 = cpltClass(ufs,sargv,len_ufs);
-					} else {
-						otop2argv1 = uargv1;
-					}
-					if (find(elements2,sargv,len2)){
-						otop2argv2 = cpltClass(ufs,sargv,len_ufs);
-					} else {
-						otop2argv2 = uargv2;
-					}
-					sdsfreesplitres(elements1,len1);
-					sdsfreesplitres(elements2,len2);
+					otop2argv1 = uargv1;
 				}
+				if (findstr(uargv2,sargv)){
+					if (!cpltClass_sargv) otop2argv2 = cplt(ufs,sargv);
+					else otop2argv2 = cpltClass_sargv;
+				} else {
+					otop2argv2 = uargv2;
+				}					
 			}		
 		} else {
 			//no transformation
@@ -1049,14 +1074,14 @@ verlist *locateVerlist(int id,sds key) {
     return NULL;
 }
 
-cverlist *locateCVerlist(sds key) {
+cverlist* locateCVerlist(sds key) {
     listNode *ln;
     listIter li;
 	
 	listRewind(cspacelist->spaces,&li);
     while((ln = listNext(&li))) {
         cverlist *s = ln->value;
-        //serverLog(LL_LOG,"locateCVerlist: s->key: %s",s->key);
+        //serverLog(LL_LOG,"locateCVerlist: s->key: %s key: %s, sdscmp:%d %d",s->key,key,sdscmp(s->key,key),strcmp(s->key,key));
         if (!sdscmp(s->key,key)) return s;
     }
     return NULL;
@@ -1084,6 +1109,7 @@ int existCVerlist(sds key) {
 }
 
 list* getCverlistVertices(cverlist *c) {
+    if (!c) serverLog(LL_LOG,"c is NULL");
     return c->vertices;
 }
 
