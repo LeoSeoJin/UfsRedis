@@ -43,6 +43,51 @@ sds sdsDel(sds list, char *t) {
    	return list;
 }
 
+sds firstOfsdsDel(sds list, char *t) {
+    //serverLog(LL_LOG,"sdsDel %s from %s",t,list);
+    //if (strlen(t)>sdslen(list)) { serverLog(LL_LOG,"delete error");
+    //serverLog(LL_LOG,"sdsDel %s(%d) from %s(%d)",t,(int)strlen(t),list,(int)sdslen(list));}
+	
+    int len,num,i,j,k;
+    
+	sds *elements = sdssplitlen(list,sdslen(list),",",1,&len);
+    sds *del = sdssplitlen(t,strlen(t),",",1,&num);
+    
+    for (i = 0; i < len; i++) {
+        for (j = 0; j < num; j++) {
+	        if (!sdscmp(elements[i],del[j])) {
+		        for (k = i; k < len-1; k++) {
+			        sdsclear(elements[k]);
+			        elements[k] = sdscat(elements[k],elements[k+1]);
+			    }
+			    for (k = j; k < num-1; k++) {
+                    sdsclear(del[k]);
+                    del[k] = sdscat(del[k],del[k+1]);
+			    }
+			    len--;
+			    num--;
+			    i--;
+			    break;
+        	}
+    	}
+   	}
+   	
+   	sdsfree(list);
+   	list = sdsempty();
+   	for (i = 0; i < len; i++) {
+   		if (sdslen(elements[i]) != 0) {
+            list = sdscat(list,elements[i]);
+            break;
+        }
+   		//if (i != len-1) list = sdscat(list,",");
+   	}
+
+   	sdsfreesplitres(elements,len);
+   	sdsfreesplitres(del,num);
+    //serverLog(LL_LOG,"sdsDel result: %s",list);
+   	return list;
+}
+
 /*v: sds/char* */
 int find(sds *list, char *v, int len) {
     int result = 0;
@@ -313,7 +358,8 @@ char* cplt(char *buf, char *s) {
                                     for (int m = 0; m < len; m++) temp[m] = buf[start+m]; 
                                     temp[len] = '\0';
                                     result = sdscat(result,temp);
-                                    result = sdsDel(result,s);
+                                    //result = sdsDel(result,s);
+                                    result = firstOfsdsDel(result,s);
                                 }
                                 flag = 1;
                                 break;    
