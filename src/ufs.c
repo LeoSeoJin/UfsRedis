@@ -284,8 +284,8 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
             int argv1class = -1; 
             int argv2class = -1;
             for (i = 0; i < len; i++) {
-                if (argv1class == -1 && findSds(elements[i],argv1)) argv1class = i;
-                if (argv2class == -1 && findSds(elements[i],argv2)) argv2class = i;
+                if (argv1class == -1 && findstr(elements[i],argv1)) argv1class = i;
+                if (argv2class == -1 && findstr(elements[i],argv2)) argv2class = i;
                 if (argv1class != -1 && argv2class != -1) break;
             }
     		
@@ -328,7 +328,7 @@ void updateVerticeUfsFromState(char *u, int type, char *argv1, char *argv2, vert
             int argvclass = -1;
     	 		
             for (i = 0; i < len; i++) {
-               if (findSds(elements[i],argv1)){
+               if (findstr(elements[i],argv1)){
                   //if (sdscntcmp(elements[i],argv1)) {
 	          if (sdslen(elements[i]) != strlen(argv1)) {
                       argvclass = i; 
@@ -831,8 +831,8 @@ void controlAlg(client *c) {
 				ul = u->ledge->adjv;
 				ul->redge = createOpEdge(-1,NULL,NULL,u->redge->oid,pl);
 
-				//c->cmd->otproc(u->content,u->ledge,u->redge,p->ledge, ul->redge, OT_SPLIT);
-                c->cmd->otproc(u->content,u->ledge,u->redge,p->ledge, ul->redge, OT_SPLIT, len_ufs);
+                //c->cmd->otproc(u->content,u->ledge,u->redge,p->ledge, ul->redge, OT_SPLIT);
+                c->cmd->otproc(u->content,u->ledge,u->redge,p->ledge, ul->redge, OT_UNION);
                 
                 updateVerticeUfsFromState(ul->content,ul->redge->optype,ul->redge->argv1,ul->redge->argv2,pl,len_ufs); 
                 
@@ -927,7 +927,8 @@ void controlAlg(client *c) {
 			ur = u->redge->adjv;
 			ur->ledge = createOpEdge(-1,NULL,NULL,u->ledge->oid,pr);
 			
-			c->cmd->otproc(u->content,u->redge,u->ledge,p->redge,ur->ledge,OT_SPLIT,len_ufs);
+			//c->cmd->otproc(u->content,u->redge,u->ledge,p->redge,ur->ledge,OT_SPLIT);
+			c->cmd->otproc(u->content,u->redge,u->ledge,p->redge,ur->ledge,OT_UNION);
 			
 			updateVerticeUfsFromState(ur->content,ur->ledge->optype,ur->ledge->argv1,ur->ledge->argv2,pr,len_ufs); 
 			//serverLog(LL_LOG,"updaeVerticeState finish (ot process) pr->content: %s",pr->content);			
